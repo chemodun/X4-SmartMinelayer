@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="SmartMinelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <library name="ReadDebugChances" purpose="include_actions">
+      <actions>
+        <set_value name="$smlDebugLevel" exact="if @player.entity.$SmartMinelayerConfig.$debugLevel != null then player.entity.$SmartMinelayerConfig.$debugLevel else 'none'" />
+        <set_value name="$debugChance" exact="if @$smlDebugLevel == null or @$smlDebugLevel == 'none' then 0 else 100" />
+        <set_value name="$traceChance" exact="if @$smlDebugLevel == 'trace' then 100 else 0" />
+        <remove_value name="$smlDebugLevel" />
+      </actions>
+    </library>
+
+    <library name="ClearDebugChances" purpose="include_actions">
+      <actions>
+        <remove_value name="$debugChance" />
+        <remove_value name="$traceChance" />
+      </actions>
+    </library>
+
+    <library name="Ensure_Config" purpose="include_actions">
+      <actions>
+        <set_value name="$cfg" exact="table[$debugLevel = 'none', $restockNpc = 0]" />
+        <do_if value="@player.entity.$SmartMinelayerConfig == null">
+          <set_value name="player.entity.$SmartMinelayerConfig" exact="$cfg" />
+        </do_if>
+        <do_else>
+          <do_for_each name="$key" in="$cfg">
+            <do_if value="not player.entity.$SmartMinelayerConfig.{$key}?">
+              <set_value name="player.entity.$SmartMinelayerConfig.{$key}" exact="$cfg.{$key}" />
+            </do_if>
+          </do_for_each>
+          <remove_value name="$key" />
+        </do_else>
+        <remove_value name="$cfg" />
+      </actions>
+    </library>
+
+    <cue name="Init" version="1">
+      <actions>
+        <include_actions ref="Ensure_Config" />
+        <raise_lua_event name="'SmartMinelayer.ConfigChanged'" />
+      </actions>
+      <cues>
+
+        <cue name="On_Game_Loaded" instantiate="true" version="1">
+          <conditions>
+            <event_game_loaded />
+          </conditions>
+          <actions>
+            <include_actions ref="Ensure_Config" />
+            <raise_lua_event name="'SmartMinelayer.ConfigChanged'" />
+          </actions>
+        </cue>
+
+        <cue name="Register_Menu" instantiate="true" version="1">
+          <conditions>
+            <event_cue_signalled cue="@md.Simple_Menu_API.Reloaded" />
+            <check_value value="@md.Options_Helper.Add_Dropdown.exists" />
+          </conditions>
+          <actions>
+            <signal_cue_instantly cue="md.Simple_Menu_API.Register_Options_Menu"
+              param="table[
+                $id      = 'smart_minelayer_options_menu',
+                $columns = 12,
+                $title   = {1972092417, 1},
+                $onOpen  = Options_Menu,
+              ]" />
+          </actions>
+        </cue>
+
+        <cue name="Options_Menu" instantiate="true" version="1">
+          <conditions>
+            <event_cue_signalled />
+          </conditions>
+          <actions>
+            <include_actions ref="Ensure_Config" />
+            <set_value name="$cfg" exact="player.entity.$SmartMinelayerConfig" />
+            <run_actions ref="md.Options_Helper.Add_Title_Row">
+              <param name="title" value="{1972092417, 90900}" />
+            </run_actions>
+            <set_value name="$debugLevelOptions" exact="[
+              table[$text = {1972092417, 90911}, $value = 'none'],
+              table[$text = {1972092417, 90912}, $value = 'debug'],
+              table[$text = {1972092417, 90913}, $value = 'trace']
+            ]" />
+            <set_value name="$debugLevelIndexes" exact="['none', 'debug', 'trace']" />
+            <set_value name="$debugLevelCurrentIndex" exact="$debugLevelIndexes.indexof.{@$cfg.$debugLevel}" />
+            <do_if value="$debugLevelCurrentIndex == 0">
+              <set_value name="$debugLevelCurrentIndex" exact="1" />
+            </do_if>
+            <run_actions ref="md.Options_Helper.Add_Dropdown">
+              <param name="id" value="'debugLevel'" />
+              <param name="options" value="$debugLevelOptions" />
+              <param name="currentIndex" value="$debugLevelCurrentIndex" />
+              <param name="col" value="1" />
+              <param name="textColSpan" value="6" />
+              <param name="text" value="{1972092417, 90910}" />
+              <param name="dropdownColSpan" value="6" />
+              <param name="handle" value="Handle_Dropdown_Changed" />
+            </run_actions>
+            <remove_value name="$debugLevelOptions" />
+            <remove_value name="$debugLevelIndexes" />
+            <remove_value name="$debugLevelCurrentIndex" />
+            <remove_value name="$cfg" />
+          </actions>
+        </cue>
+
+        <cue name="Handle_Dropdown_Changed" instantiate="true" version="1">
+          <conditions>
+            <event_cue_signalled />
+          </conditions>
+          <actions>
+            <set_value name="$resultTable" exact="player.entity.$SmartMinelayerConfig" />
+            <include_actions ref="md.Options_Helper.Process_Dropdown_Changed" />
+            <remove_value name="$resultTable" />
+            <raise_lua_event name="'SmartMinelayer.ConfigChanged'" />
+            <include_actions ref="ReadDebugChances" />
+            <debug_text text="'SmartMinelayer: Options: %s set to %s'.[event.param.$echo.$valueId, @event.param.$option.$value]" chance="$debugChance" />
+            <include_actions ref="ClearDebugChances" />
+          </actions>
+        </cue>
+
+        <!-- AI scripts cannot receive event_ui_triggered, so the window's answer is relayed to the ship; param3 = the ship -->
+        <cue name="ConfigReady" instantiate="true" version="1">
+          <conditions>
+            <event_ui_triggered screen="'SmartMinelayer'" control="'ConfigReady'" />
+          </conditions>
+          <actions>
+            <include_actions ref="ReadDebugChances" />
+            <do_if value="@event.param3.exists">
+              <!-- the window's default for the next new order -->
+              <do_if value="event.param3.pilot and event.param3.pilot.$SmartMinelayerRestockNpc?">
+                <include_actions ref="Ensure_Config" />
+                <set_value name="player.entity.$SmartMinelayerConfig.$restockNpc" exact="event.param3.pilot.$SmartMinelayerRestockNpc" />
+              </do_if>
+              <signal_objects object="event.param3" param="'SmartMinelayer.ConfigReady'" />
+              <debug_text text="'SmartMinelayer: config ready for %s, restock at other factions %s'.[event.param3.debugname, @event.param3.pilot.$SmartMinelayerRestockNpc]" chance="$debugChance" />
+            </do_if>
+            <include_actions ref="ClearDebugChances" />
+          </actions>
+        </cue>
+
+        <cue name="ConfigCancelled" instantiate="true" version="1">
+          <conditions>
+            <event_ui_triggered screen="'SmartMinelayer'" control="'ConfigCancelled'" />
+          </conditions>
+          <actions>
+            <include_actions ref="ReadDebugChances" />
+            <do_if value="@event.param3.exists">
+              <signal_objects object="event.param3" param="'SmartMinelayer.ConfigCancelled'" />
+              <debug_text text="'SmartMinelayer: config cancelled for %s'.[event.param3.debugname]" chance="$debugChance" />
+            </do_if>
+            <include_actions ref="ClearDebugChances" />
+          </actions>
+        </cue>
+
+      </cues>
+    </cue>
+
+    <!-- an enemy ship killed by a mine or laser tower an order placed: experience as vanilla order.fight.attack.object grants it -->
+    <cue name="KillExperience" namespace="this" version="2">
+      <actions>
+        <!-- deployed object -> minelayer: a mine holds no variables, and a destroyed object still finds its key -->
+        <set_value name="$owners" exact="table[]" />
+        <set_value name="$gone" exact="[]" />
+      </actions>
+      <cues>
+        <!-- param2 = deployed mine or laser tower, param3 = minelayer -->
+        <cue name="KillExperienceDeployed" instantiate="true">
+          <conditions>
+            <event_object_signalled object="player.galaxy" param="'SmartMinelayer.Deployed'" />
+          </conditions>
+          <actions>
+            <do_if value="not $owners?">
+              <set_value name="$owners" exact="table[]" />
+            </do_if>
+            <set_value name="$owners.{event.param2}" exact="event.param3" />
+          </actions>
+        </cue>
+
+        <cue name="KillExperienceKill" instantiate="true">
+          <conditions>
+            <event_player_owned_killed_object />
+            <check_value value="$owners? and $owners.{event.param}? and @event.param2.isclass.ship" />
+            <check_value value="event.param2.trueowner.relationto.{faction.player} le faction.player.relation.killmilitary.max" />
+          </conditions>
+          <actions>
+            <include_actions ref="ReadDebugChances" />
+            <set_value name="$ship" exact="$owners.{event.param}" />
+            <set_value name="$victim" exact="event.param2" />
+            <do_if value="@$ship.isoperational and $ship.isplayerowned and @$ship.pilot.exists">
+              <!-- hard when the victim outweighs the ship; the fight takes no time, so the hard factor is vanilla's cap -->
+              <set_value name="$difficulty" exact="(@$victim.dps.all / [$ship.dps.all, 1].max) + ($victim.maxhull / [$ship.hull, 1].max * 0.5)" />
+              <set_value name="$category" exact="if $difficulty gt 2 then 'ship_kill_hard' else 'ship_kill_easy'" />
+              <apply_experience entity="$ship.pilot" experience="$category" factor="1.0" />
+              <apply_experience object="$ship" role="entityrole.service" experience="$category" factor="1.0" />
+              <do_if value="$category == 'ship_kill_hard'">
+                <apply_experience entity="$ship.pilot" experience="'ship_kill_easy'" factor="1.0" />
+                <apply_experience object="$ship" role="entityrole.service" experience="'ship_kill_easy'" factor="1.0" />
+              </do_if>
+              <debug_text text="'SmartMinelayer: %s killed %s (method %s), %s gains %s (difficulty %s)'.[event.param.debugname, $victim.debugname, event.param3, $ship.debugname, $category, $difficulty]" chance="$debugChance" />
+              <remove_value name="$difficulty" />
+              <remove_value name="$category" />
+            </do_if>
+            <do_else>
+              <debug_text text="'SmartMinelayer: %s killed %s, no experience: minelayer %s gone, not owned by the player or without a pilot'.[event.param.debugname, $victim.debugname, @$ship.debugname]" chance="$debugChance" />
+            </do_else>
+            <remove_value name="$ship" />
+            <remove_value name="$victim" />
+            <include_actions ref="ClearDebugChances" />
+          </actions>
+        </cue>
+
+        <!-- an object first seen gone leaves one sweep later, after its kill event (within a second of the destruction) -->
+        <cue name="KillExperienceSweep">
+          <delay exact="60s" />
+          <actions>
+            <do_if value="$owners? and $gone?">
+              <do_for_each name="$obj" in="$gone">
+                <remove_value name="$owners.{$obj}" />
+              </do_for_each>
+              <set_value name="$gone" exact="[]" />
+              <do_for_each name="$obj" in="$owners.keys.list">
+                <do_if value="not $obj.exists">
+                  <append_to_list name="$gone" exact="$obj" />
+                </do_if>
+              </do_for_each>
+              <remove_value name="$obj" />
+            </do_if>
+            <do_else>
+              <set_value name="$owners" exact="if $owners? then $owners else table[]" />
+              <set_value name="$gone" exact="[]" />
+            </do_else>
+            <reset_cue cue="this" />
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+  </cues>
+</mdscript>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content
+  id="ws_3843065392"
+  name="Smart Minelayer"
+  author="Chem O`Dun"
+  version="100"
+  date="2026-03-29"
+  save="false"
+  sync="false"
+  lastupdate=""
+  description="[h1]Smart Minelayer[/h1]&#13;&#10;&#13;&#10;A ship order that deploys mines or laser towers in configurable geometric patterns (circle, square, hexagon, sphere, cube) around a point or object in space, then monitors and automatically replaces destroyed items.&#13;&#10;&#13;&#10;[h2]Features[/h2]&#13;&#10;[list]&#13;&#10;[*] Deploy in circle, square, hexagon, sphere or cube patterns&#13;&#10;[*] Configurable spacing, distance, density and concentric layers&#13;&#10;[*] Works with any mine or laser tower type in the ship's cargo&#13;&#10;[*] Monitors deployed items and restocks when losses exceed a threshold&#13;&#10;[*] No cheating - the ship physically travels to each deploy position&#13;&#10;[/list]">
+  <!-- English -->
+  <text language="44"
+    name="Smart Minelayer"
+    description="Deploy mines or laser towers in geometric patterns and auto-replace destroyed items." />
+  <dependency version="800"></dependency>
+  <dependency id="ws_2042901274" optional="false" name="SirNukes Mod Support APIs" version="195"></dependency>
+  <dependency id="ws_3715253556" optional="false" name="Options Helper" version="110"></dependency>
+  <dependency id="ws_3770927339" optional="false" name="Print Extension List" version="100"></dependency>
+  <dependency id="ws_3823580916" optional="false" name="Lua Log API" version="100"></dependency>
+  <dependency id="ws_3839783822" optional="false" name="Extra UI API" version="105"></dependency>
+</content>

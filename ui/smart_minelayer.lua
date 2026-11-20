@@ -1,0 +1,1059 @@
+-- Smart Minelayer: the slot config window on the map. It computes the deployment positions of a slot and hands
+-- them to the order on the pilot's blackboard; design notes in claude/mod-smart_minelayer.md.
+
+---@diagnostic disable-next-line: unresolved-require
+local ffi = require("ffi")
+local C = ffi.C
+
+ffi.cdef [[
+  typedef uint64_t UniverseID;
+  typedef struct {
+    const char* type;
+    const char* ware;
+    const char* macro;
+    int amount;
+  } EquipmentWareInfo;
+  typedef struct { int major; int minor; } GameVersion;
+  uint32_t GetAvailableEquipment(EquipmentWareInfo* result, uint32_t resultlen, UniverseID containerid, const char* classid);
+  const char* GetComponentClass(UniverseID componentid);
+  GameVersion GetGameVersion();
+  uint32_t GetNumAvailableEquipment(UniverseID containerid, const char* classid);
+  uint32_t GetNumWares(const char* tags, bool research, const char* licenceownerid, const char* exclusiontags);
+  UniverseID GetPlayerID(void);
+  UniverseID GetPlayerObjectID(void);
+  uint32_t GetWares(const char** result, uint32_t resultlen, const char* tags, bool research, const char* licenceownerid, const char* exclusiontags);
+  bool IsDeployableMacroCompatible(UniverseID containerid, const char* macroname, const char* deployablemacroname);
+]]
+
+local PAGE = 1972092417
+
+local config = {
+  -- above the map, below its context menus
+  frameLayer         = 1,
+  isV9               = C.GetGameVersion().major >= 9,
+  configBlackboard   = "$SmartMinelayerConfig",
+  requestVar         = "$SmartMinelayerConfigRequestData",
+  positionsVar       = "$SmartMinelayerPositionsList",
+  deployableMacroVar = "$SmartMinelayerDeployableMacro",
+  deployableInputsVar = "$SmartMinelayerDeployableInputs",
+  slotsVar           = "$SmartMinelayerSlotList",
+  slotStatsVar       = "$SmartMinelayerSlotStats",
+  configPositionVar  = "$SmartMinelayerConfigPosition",
+  restockNpcVar      = "$SmartMinelayerRestockNpc",
+  lowAttentionVar    = "$SmartMinelayerLowAttention",
+  mineStatsVar       = "$SmartMinelayerMineStats",
+  -- one tab icon per slot
+  maxSlots           = 9,
+  maxItemsPerSlot    = 1000,
+  twoPi              = 2 * math.pi,
+  goldenAngle        = math.pi * (3 - math.sqrt(5)),
+  -- per density 1-5
+  circleItems        = { 9, 18, 27, 36, 45 },
+  squareSides        = { 3, 5, 7, 10, 12 },
+  hexagonItems       = { 9, 18, 27, 36, 45 },
+  spherePoints       = { 26, 62, 122, 242, 482 },
+  defaultMine        = "weapon_gen_mine_03",
+  defaultTower       = "ship_gen_xs_lasertower_01_a",
+  defaults           = {
+    shape = 1, planeOrientation = 0, density = 1,
+    concentricShapesCount = 0, concentricShapesSpacing = 2000, radius = 2000,
+    parallelLayersCount = 0, parallelLayersSpacing = 500,
+    offsetDirection = 0, offsetDistance = 2000, threshold = 5,
+  },
+}
+
+local KIND_MINE, KIND_TOWER = 1, 2
+
+local SLOT_FIELDS = {
+  "shape", "planeOrientation", "density", "concentricShapesCount", "concentricShapesSpacing", "radius",
+  "parallelLayersCount", "parallelLayersSpacing", "offsetDirection", "offsetDistance", "threshold",
+}
+
+---@type table<string, any>
+local sm = {
+  menu = nil,
+  debugLevel = "none",
+  -- config requests in arrival order; the first one is shown
+  requests = {},
+  configFrame = nil,
+}
+
+-- *** logging ***
+
+local function format(fmt, ...)
+  if select("#", ...) > 0 then fmt = string.format(fmt, ...) end
+  return "SmartMinelayer: " .. fmt
+end
+
+function sm.Error(fmt, ...) UIError(format(fmt, ...)) end
+function sm.Debug(fmt, ...) if sm.debugLevel ~= "none" then UIDebug(format(fmt, ...)) end end
+function sm.Trace(fmt, ...) if sm.debugLevel == "trace" then UITrace(format(fmt, ...)) end end
+
+function sm.ReadConfig()
+  local playerId = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
+  if playerId == 0 then return end
+  local cfg = GetNPCBlackboard(playerId, config.configBlackboard)
+  sm.debugLevel = (type(cfg) == "table" and cfg.debugLevel) and tostring(cfg.debugLevel) or "none"
+end
+
+-- *** geometry ***
+
+local function vec(x, y, z) return { x = x, y = y, z = z } end
+local function negate(v) return vec(-v.x, -v.y, -v.z) end
+
+-- pattern axes u, v and the offset direction w, from the object's rotation
+local function orientedBasis(rot, direction)
+  local fwd, right, up = rot.forward, rot.right, rot.up
+  if direction == 1 then return right, up, fwd end
+  if direction == 2 then return negate(right), up, negate(fwd) end
+  if direction == 3 then return negate(fwd), up, right end
+  if direction == 4 then return fwd, up, negate(right) end
+  if direction == 5 then return right, negate(fwd), up end
+  if direction == 6 then return right, fwd, negate(up) end
+end
+
+local function planeTransform(cx, cy, cz, orientation, u, v)
+  if u then
+    return function(a, b) return vec(cx + a * u.x + b * v.x, cy + a * u.y + b * v.y, cz + a * u.z + b * v.z) end
+  end
+  if orientation == 1 then return function(a, b) return vec(cx + a, cy + b, cz) end end
+  if orientation == 2 then return function(a, b) return vec(cx, cy + b, cz + a) end end
+  return function(a, b) return vec(cx + a, cy, cz + b) end
+end
+
+local function spaceTransform(cx, cy, cz, u, v, w)
+  if u then
+    return function(a, b, c)
+      return vec(cx + a * u.x + b * v.x + c * w.x, cy + a * u.y + b * v.y + c * w.y, cz + a * u.z + b * v.z + c * w.z)
+    end
+  end
+  return function(a, b, c) return vec(cx + a, cy + b, cz + c) end
+end
+
+-- the normal along which parallel layers are stacked
+local function planeNormal(orientation, w)
+  if w then return w end
+  if orientation == 1 then return vec(0, 0, 1) end
+  if orientation == 2 then return vec(1, 0, 0) end
+  return vec(0, 1, 0)
+end
+
+local function circle(out, transform, items, r, layer)
+  local step = config.twoPi / items
+  local offset = layer * step * 0.5
+  for i = 0, items - 1 do
+    local angle = i * step + offset
+    out[#out + 1] = transform(r * math.cos(angle), r * math.sin(angle))
+  end
+end
+
+local function square(out, transform, side, half, fill)
+  local step = (side > 1) and (2 * half / (side - 1)) or 0
+  for i = 0, side - 1 do
+    for j = 0, side - 1 do
+      if fill or i == 0 or j == 0 or i == side - 1 or j == side - 1 then
+        out[#out + 1] = transform(-half + i * step, -half + j * step)
+      end
+    end
+  end
+end
+
+-- evenly spaced along the perimeter; a side is as long as the circumradius
+local function hexagon(out, transform, items, r, layer)
+  local rotation = (layer % 2) * math.pi / 6
+  local corners = {}
+  for k = 0, 6 do
+    local angle = k * math.pi / 3 + rotation
+    corners[k + 1] = { r * math.cos(angle), r * math.sin(angle) }
+  end
+  for i = 0, items - 1 do
+    local s = i * 6 / items
+    local side = math.floor(s)
+    local t = s - side
+    local a, b = corners[side + 1], corners[side + 2]
+    out[#out + 1] = transform(a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2]))
+  end
+end
+
+local function sphere(out, cx, cy, cz, n, r, layer)
+  local phiOffset = layer * config.goldenAngle
+  for i = 1, n do
+    local theta = math.acos(1 - 2 * (i - 0.5) / n)
+    local phi = config.goldenAngle * i + phiOffset
+    local sinTheta = math.sin(theta)
+    out[#out + 1] = vec(cx + r * sinTheta * math.cos(phi), cy + r * math.cos(theta), cz + r * sinTheta * math.sin(phi))
+  end
+end
+
+local function cube(out, transform, side, half, fill)
+  local step = (side > 1) and (2 * half / (side - 1)) or 0
+  for i = 0, side - 1 do
+    for j = 0, side - 1 do
+      for k = 0, side - 1 do
+        if fill or i == 0 or j == 0 or k == 0 or i == side - 1 or j == side - 1 or k == side - 1 then
+          out[#out + 1] = transform(-half + i * step, -half + j * step, -half + k * step)
+        end
+      end
+    end
+  end
+end
+
+-- unit outline, scaled by the layer distance
+local LOGO_X = {
+  { 0.516352825, 0.188260654 }, { 0.159563925, -0.148662042 }, { 0.496531219, -0.683845391 },
+  { -0.018830525, -0.683845391 }, { -0.167492567, -0.46580773 }, { -0.405351833, -0.683845391 },
+  { -0.960356789, -0.683845391 }, { -0.385530228, -0.128840436 }, { -0.742319128, 0.436075322 },
+  { -0.217046581, 0.436075322 }, { -0.058473736, 0.186323092 }, { 0.219028741, 0.436075322 },
+  { 0.417244797, 0.436075322 },
+}
+local LOGO_CIRCLE = { 0.699702676, 0.396432111, 0.277502478 }
+local LOGO_FOUR = {
+  { 0.783944500, 0.436075322, 0.783944500, 0.272547076 },
+  { 0.783944500, 0.376610505, 0.555996036, 0.376610505 },
+  { 0.555996036, 0.376610505, 0.749256690, 0.559960357 },
+}
+
+local function logo(out, transform, scale, pointsPerUnit)
+  local function line(x1, y1, x2, y2)
+    local steps = math.max(1, math.floor(math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) * pointsPerUnit + 0.5))
+    for i = 0, steps do
+      local t = i / steps
+      out[#out + 1] = transform((x1 + (x2 - x1) * t) * scale, (y1 + (y2 - y1) * t) * scale)
+    end
+  end
+  for i = 1, #LOGO_X - 1 do
+    line(LOGO_X[i][1], LOGO_X[i][2], LOGO_X[i + 1][1], LOGO_X[i + 1][2])
+  end
+  local lx, ly, lr = LOGO_CIRCLE[1], LOGO_CIRCLE[2], LOGO_CIRCLE[3]
+  local steps = math.max(3, math.floor(config.twoPi * lr * pointsPerUnit + 0.5))
+  for i = 0, steps - 1 do
+    local angle = i / steps * config.twoPi
+    out[#out + 1] = transform((lx + lr * math.cos(angle)) * scale, (ly + lr * math.sin(angle)) * scale)
+  end
+  for _, s in ipairs(LOGO_FOUR) do
+    line(s[1], s[2], s[3], s[4])
+  end
+end
+
+-- drops points within 10 cm of an earlier one: shared corners, line ends and overlapping layers
+local function dedupe(points)
+  local seen, out = {}, {}
+  for _, p in ipairs(points) do
+    local key = string.format("%d:%d:%d", math.floor(p.x * 10 + 0.5), math.floor(p.y * 10 + 0.5), math.floor(p.z * 10 + 0.5))
+    if not seen[key] then
+      seen[key] = true
+      out[#out + 1] = p
+    end
+  end
+  return out
+end
+
+-- greedy nearest-neighbour walk from the first point, O(n^2)
+local function sortNearestNeighbor(positions)
+  local n = #positions
+  if n <= 2 then return positions end
+  local sorted, visited = { positions[1] }, { [1] = true }
+  for _ = 2, n do
+    local cur = sorted[#sorted]
+    local bestIdx, bestDist = nil, math.huge
+    for j = 1, n do
+      if not visited[j] then
+        local p = positions[j]
+        local dx, dy, dz = p.x - cur.x, p.y - cur.y, p.z - cur.z
+        local d2 = dx * dx + dy * dy + dz * dz
+        if d2 < bestDist then
+          bestDist, bestIdx = d2, j
+        end
+      end
+    end
+    visited[bestIdx] = true
+    sorted[#sorted + 1] = positions[bestIdx]
+  end
+  return sorted
+end
+
+-- the positions of the slot cfg describes; sorted for the flight path only when they will be laid
+function sm.computePositions(cfg, sorted)
+  local cx, cy, cz = 0, 0, 0
+  local rot
+  if cfg.targetObjectPosition then
+    local p = cfg.targetObjectPosition
+    cx, cy, cz = p.x or 0, p.y or 0, p.z or 0
+    local r = cfg.targetObjectRotation
+    if r then
+      rot = {
+        forward = vec(r.fwdX or 0, r.fwdY or 0, r.fwdZ or 0),
+        right   = vec(r.rgtX or 0, r.rgtY or 0, r.rgtZ or 0),
+        up      = vec(r.upX or 0, r.upY or 0, r.upZ or 0),
+      }
+    end
+  elseif cfg.targetPosition and type(cfg.targetPosition[2]) == "table" then
+    local p = cfg.targetPosition[2]
+    cx, cy, cz = p.x or 0, p.y or 0, p.z or 0
+  end
+
+  local u, v, w
+  if rot and cfg.targetObject and cfg.offsetDirection > 0 then
+    u, v, w = orientedBasis(rot, cfg.offsetDirection)
+    cx, cy, cz = cx + w.x * cfg.offsetDistance, cy + w.y * cfg.offsetDistance, cz + w.z * cfg.offsetDistance
+  end
+
+  local shape, density = cfg.shape, cfg.density
+  local onObject = cfg.targetObject ~= nil
+  -- around an object the centre is taken, so only a free position fills its grid
+  local fill = not onObject
+  local planar = shape == 1 or shape == 2 or shape == 3 or shape == 6
+  local planes = (planar and cfg.parallelLayersCount > 0 and (w or not onObject)) and (cfg.parallelLayersCount + 1) or 1
+  local planeOrder = {}
+  do
+    local center = math.floor((planes - 1) / 2)
+    planeOrder[1] = center
+    local l, r = center - 1, center + 1
+    while l >= 0 or r < planes do
+      if l >= 0 then planeOrder[#planeOrder + 1] = l; l = l - 1 end
+      if r < planes then planeOrder[#planeOrder + 1] = r; r = r + 1 end
+    end
+  end
+  local normal = planeNormal(cfg.planeOrientation, w)
+  local transform2 = planeTransform(cx, cy, cz, cfg.planeOrientation, u, v)
+  local transform3 = spaceTransform(cx, cy, cz, u, v, w)
+  local pointsPerUnit = config.circleItems[density] / config.twoPi
+
+  local positions = {}
+  for layer = 0, cfg.concentricShapesCount do
+    local dist = cfg.radius + layer * cfg.concentricShapesSpacing
+    local base = {}
+    if shape == 1 then
+      circle(base, transform2, config.circleItems[density], dist, layer)
+    elseif shape == 2 then
+      square(base, transform2, config.squareSides[density], dist, fill and layer == 0)
+    elseif shape == 3 then
+      hexagon(base, transform2, config.hexagonItems[density], dist, layer)
+    elseif shape == 4 then
+      sphere(base, cx, cy, cz, config.spherePoints[density], dist, layer)
+    elseif shape == 5 then
+      cube(base, transform3, config.squareSides[density], dist, fill and layer == 0)
+    else
+      logo(base, transform2, dist, pointsPerUnit)
+    end
+    for _, plane in ipairs(planeOrder) do
+      local d = (plane - (planes - 1) / 2) * cfg.parallelLayersSpacing
+      local group = {}
+      for _, p in ipairs(base) do
+        group[#group + 1] = vec(p.x + d * normal.x, p.y + d * normal.y, p.z + d * normal.z)
+      end
+      if sorted then group = sortNearestNeighbor(group) end
+      for _, p in ipairs(group) do positions[#positions + 1] = p end
+    end
+  end
+  return dedupe(positions)
+end
+
+-- *** config state ***
+
+local function positionsMatch(p1, p2)
+  if p1 == nil and p2 == nil then return true end
+  if p1 == nil or p2 == nil then return false end
+  if not (p1[1] and p2[1] and IsSameComponent(p1[1], p2[1])) then return false end
+  local c1, c2 = p1[2], p2[2]
+  if type(c1) ~= "table" or type(c2) ~= "table" then return false end
+  local dx, dy, dz = (c1.x or 0) - (c2.x or 0), (c1.y or 0) - (c2.y or 0), (c1.z or 0) - (c2.z or 0)
+  return dx * dx + dy * dy + dz * dz < 100
+end
+
+local function samePositions(a, b)
+  if #a ~= #b then return false end
+  for i = 1, #a do
+    local dx, dy, dz = a[i].x - b[i].x, a[i].y - b[i].y, a[i].z - b[i].z
+    if dx * dx + dy * dy + dz * dz > 1 then return false end
+  end
+  return true
+end
+
+-- a saved slot's positions, cut from the flat list the order uses
+function sm.oldSlotPositions(cfg, index)
+  local stats = cfg.oldStats[index]
+  if type(stats) == "table" and stats.firstPosIdx and stats.size then
+    local out = {}
+    for i = stats.firstPosIdx, stats.firstPosIdx + stats.size - 1 do
+      out[#out + 1] = cfg.oldPositions[i]
+    end
+    return out
+  end
+  local slot = cfg.slotList[index]
+  return (type(slot) == "table" and type(slot.positions) == "table") and slot.positions or {}
+end
+
+-- a mine carries its library entry (damage, friend/foe, tracking, trigger range), package size and follow range
+local function wareOption(wareId, macro, wareName, kind)
+  local icon = GetMacroData(macro, "icon") or ""
+  local package, follow
+  if kind == KIND_MINE and ExtraUI then package, follow = ExtraUI.GetMacroDataEx(macro, "minecounter", "minefollowrange") end
+  return {
+    id = wareId, macro = macro, icon = "",
+    text = (icon ~= "" and ("\027[" .. icon .. "] ") or "") .. (wareName or wareId),
+    displayremoveoption = false,
+    kind = kind,
+    mine = (kind == KIND_MINE) and GetLibraryEntry("mines", macro) or nil,
+    package = package, follow = follow,
+  }
+end
+
+function sm.getDeployableWareOptions(cfg, shipId64, shipMacro, shipClass, equipmentStations)
+  if cfg.existingDeployableMacro then
+    local macro = cfg.existingDeployableMacro
+    local wareId = GetMacroData(macro, "ware") or ""
+    local wareName = (wareId ~= "") and GetWareData(wareId, "name") or macro
+    cfg.allWareOptions = { wareOption(wareId, macro, wareName, IsMacroClass(macro, "mine") and KIND_MINE or KIND_TOWER) }
+    return
+  end
+
+  local result = {}
+  for kind, tag in ipairs({ "mine", "lasertower" }) do
+    local n = C.GetNumWares(tag, false, "", "")
+    local buf = ffi.new("const char*[?]", n)
+    n = C.GetWares(buf, n, tag, false, "", "")
+    for i = 0, n - 1 do
+      local wareId = ffi.string(buf[i])
+      local wareName, macro = GetWareData(wareId, "name", "component")
+      if macro and wareName and (shipId64 == 0 or C.IsDeployableMacroCompatible(shipId64, shipMacro, macro)) then
+        local opt = wareOption(wareId, macro, wareName, kind)
+        -- one launch must be one mine; an unknown package size counts as a package
+        if kind == KIND_MINE and opt.package ~= 1 then
+          sm.Debug("mine %s left out: package size %s", wareId, tostring(opt.package))
+        else
+          result[#result + 1] = opt
+        end
+      end
+    end
+  end
+  table.sort(result, function(a, b) return a.text < b.text end)
+
+  -- only what a reachable equipment dock sells
+  if type(equipmentStations) == "table" and #equipmentStations > 0 then
+    local unsold = {}
+    for _, opt in ipairs(result) do unsold[opt.id] = true end
+    for _, station in ipairs(equipmentStations) do
+      local station64 = ConvertIDTo64Bit(station)
+      local count = C.GetNumAvailableEquipment(station64, shipClass)
+      local equipment = ffi.new("EquipmentWareInfo[?]", count)
+      count = C.GetAvailableEquipment(equipment, count, station64, shipClass)
+      for j = 0, count - 1 do
+        local ware = equipment[j].ware and ffi.string(equipment[j].ware) or ""
+        unsold[ware] = nil
+      end
+      if next(unsold) == nil then break end
+    end
+    for i = #result, 1, -1 do
+      if unsold[result[i].id] then
+        sm.Trace("ware %s is sold at no reachable equipment dock", result[i].id)
+        table.remove(result, i)
+      end
+    end
+  end
+
+  cfg.allWareOptions = result
+end
+
+-- the dropdown's items: the chosen kind; with low attention on, friend/foe mines only
+function sm.filterWareOptions(cfg)
+  local list, keep = {}, nil
+  for _, opt in ipairs(cfg.allWareOptions or {}) do
+    if opt.kind == cfg.kind and (opt.kind ~= KIND_MINE or not cfg.lowAttention or (opt.mine and opt.mine.isfriendfoe)) then
+      list[#list + 1] = opt
+      if opt.id == cfg.ware then keep = opt end
+    end
+  end
+  if not keep then
+    local default = (cfg.kind == KIND_MINE) and config.defaultMine or config.defaultTower
+    for _, opt in ipairs(list) do
+      if opt.id == default then keep = opt; break end
+    end
+    keep = keep or list[1]
+  end
+  cfg.deployableWareOptions = list
+  cfg.ware, cfg.wareMacro = keep and keep.id or "", keep and keep.macro or ""
+end
+
+function sm.selectedWareOption(cfg)
+  for _, opt in ipairs(cfg.allWareOptions or {}) do
+    if opt.id == cfg.ware then return opt end
+  end
+end
+
+function sm.newConfigState(request)
+  local req, handle = request.req, request.handle
+  local cfg = {}
+  for _, field in ipairs(SLOT_FIELDS) do cfg[field] = config.defaults[field] end
+  cfg.sector               = req.sector
+  cfg.targetObject         = req.targetObject
+  cfg.targetObjectPosition = req.targetObjectPosition
+  cfg.targetObjectRotation = req.targetObjectRotation
+  cfg.targetPosition       = req.targetPosition
+  cfg.reviewOnly           = req.reviewOnly
+
+  local slotList = GetNPCBlackboard(handle, config.slotsVar)
+  cfg.slotList = (type(slotList) == "table") and slotList or {}
+  local oldStats = GetNPCBlackboard(handle, config.slotStatsVar)
+  cfg.oldStats = (type(oldStats) == "table") and oldStats or {}
+  local oldPositions = GetNPCBlackboard(handle, config.positionsVar)
+  cfg.oldPositions = (type(oldPositions) == "table") and oldPositions or {}
+  local existingMacro = GetNPCBlackboard(handle, config.deployableMacroVar)
+  cfg.existingDeployableMacro = (type(existingMacro) == "string" and existingMacro ~= "") and existingMacro or nil
+  -- per order; a new order starts with the value last confirmed in any window
+  local restockNpc = GetNPCBlackboard(handle, config.restockNpcVar)
+  if restockNpc == nil then
+    local playerCfg = GetNPCBlackboard(ConvertStringTo64Bit(tostring(C.GetPlayerID())), config.configBlackboard)
+    restockNpc = (type(playerCfg) == "table") and playerCfg.restockNpc or 0
+  end
+  cfg.restockNpc = (restockNpc == 1 or restockNpc == true)
+  cfg.originalRestockNpc = cfg.restockNpc
+
+  local ship = ConvertIDTo64Bit(request.callbackObject) or 0
+  local shipMacro = (ship ~= 0) and (GetComponentData(ship, "macro") or "") or ""
+  local shipClass = (ship ~= 0) and ffi.string(C.GetComponentClass(ship)) or ""
+  sm.getDeployableWareOptions(cfg, ship, shipMacro, shipClass, req.equipmentStations)
+  -- per order, on in a new window; an order's existing ware fixes the kind
+  local lowAttention = GetNPCBlackboard(handle, config.lowAttentionVar)
+  cfg.lowAttention = (lowAttention == nil) or lowAttention == 1 or lowAttention == true
+  cfg.canLowAttention = true
+  cfg.kind = KIND_TOWER
+  for _, opt in ipairs(cfg.allWareOptions) do
+    if opt.kind == KIND_MINE then cfg.kind = KIND_MINE; break end
+  end
+  if cfg.existingDeployableMacro then
+    local opt = cfg.allWareOptions[1]
+    cfg.ware = opt.id
+    cfg.canLowAttention = opt.kind == KIND_MINE and opt.mine ~= nil and opt.mine.isfriendfoe == true
+    if not cfg.canLowAttention then cfg.lowAttention = false end
+  end
+  cfg.originalLowAttention = cfg.lowAttention
+  sm.filterWareOptions(cfg)
+
+  local matchIdx
+  if not cfg.reviewOnly then
+    for i, slot in ipairs(cfg.slotList) do
+      if cfg.targetObject then
+        if slot.targetObject and IsSameComponent(slot.targetObject, cfg.targetObject) then matchIdx = i; break end
+      elseif not slot.targetObject and positionsMatch(cfg.targetPosition, slot.targetPosition) then
+        matchIdx = i
+        break
+      end
+    end
+  end
+
+  if matchIdx then
+    local slot = cfg.slotList[matchIdx]
+    cfg.originalValues = {}
+    for _, field in ipairs(SLOT_FIELDS) do
+      cfg[field] = slot[field] or config.defaults[field]
+      cfg.originalValues[field] = cfg[field]
+    end
+    cfg.editingSlotIndex = matchIdx
+    cfg.editingTabIndex  = matchIdx
+    cfg.activeTab        = matchIdx
+  elseif cfg.reviewOnly or #cfg.slotList >= config.maxSlots then
+    -- tab 0 never matches, so every tab is read only
+    cfg.slotLimitReached = not cfg.reviewOnly
+    cfg.editingTabIndex  = 0
+    cfg.activeTab        = math.max(1, #cfg.slotList)
+  else
+    cfg.editingTabIndex = #cfg.slotList + 1
+    cfg.activeTab       = cfg.editingTabIndex
+  end
+  if not cfg.targetObject then cfg.offsetDirection = 0 end
+  return cfg
+end
+
+-- *** requests ***
+
+-- raised by the order (and every 5 s while it waits) and by the context menu, with the pilot
+function sm.onConfigure(_, handle)
+  if not handle then return end
+  local handle64 = ConvertStringTo64Bit(tostring(handle))
+  local req = GetNPCBlackboard(handle64, config.requestVar)
+  if type(req) ~= "table" then
+    sm.Debug("config request of %s has no data", tostring(handle64))
+    return
+  end
+  req.reviewOnly = (req.reviewOnly == true or req.reviewOnly == 1)
+  local key = tostring(handle64)
+  for i, request in ipairs(sm.requests) do
+    if request.key == key then
+      if request.req.reviewOnly and not req.reviewOnly then
+        request.req, request.callbackObject, request.cfg = req, req.callbackObject, nil
+        if i == 1 then sm.dropWindow() end
+        sm.Debug("review of %s replaced by its config request", key)
+      end
+      return
+    end
+  end
+  -- a request new to Lua has no window; a marker it carries came from a save
+  SetNPCBlackboard(handle64, config.configPositionVar, nil)
+  sm.requests[#sm.requests + 1] = { key = key, handle = handle64, callbackObject = req.callbackObject, req = req }
+  sm.Debug("config request of %s queued, %d waiting", key, #sm.requests)
+end
+
+function sm.openRequest(request)
+  if not request.req.reviewOnly and type(GetNPCBlackboard(request.handle, config.requestVar)) ~= "table" then
+    sm.Debug("config request of %s was withdrawn", request.key)
+    table.remove(sm.requests, 1)
+    return
+  end
+  if not request.cfg then
+    request.cfg = sm.newConfigState(request)
+    local menu = sm.menu
+    menu.selectedcomponents = {}
+    menu.addSelectedComponent(ConvertIDTo64Bit(request.callbackObject), true, true)
+    menu.setSelectedMapComponents()
+  end
+  sm.showConfigWindow()
+end
+
+-- the frame is gone (map closed, or a request replaced); the request stays queued and is shown again
+function sm.dropWindow()
+  if sm.configFrame then
+    sm.configFrame = nil
+    Helper.clearFrame(sm.menu, config.frameLayer)
+  end
+  local request = sm.requests[1]
+  if request then
+    SetNPCBlackboard(request.handle, config.configPositionVar, nil)
+  end
+end
+
+function sm.finishRequest()
+  local request = sm.requests[1]
+  sm.dropWindow()
+  table.remove(sm.requests, 1)
+  if request and request.req.reviewOnly then
+    SetNPCBlackboard(request.handle, config.requestVar, nil)
+  end
+  return request
+end
+
+function sm.onConfigOK()
+  local request = sm.requests[1]
+  local cfg = request and request.cfg
+  if not cfg then return end
+  local positions = sm.computePositions(cfg, true)
+  if #positions == 0 or #positions > config.maxItemsPerSlot or cfg.wareMacro == "" then return end
+
+  local slotEntry = {
+    targetObject         = cfg.targetObject,
+    targetObjectPosition = cfg.targetObjectPosition,
+    targetObjectRotation = cfg.targetObjectRotation,
+    targetPosition       = cfg.targetPosition,
+    sector               = cfg.sector,
+  }
+  for _, field in ipairs(SLOT_FIELDS) do slotEntry[field] = cfg[field] end
+
+  local slots, slotPositions = {}, {}
+  for i, slot in ipairs(cfg.slotList) do
+    slot.positions = nil
+    slots[i] = slot
+    slotPositions[i] = sm.oldSlotPositions(cfg, i)
+  end
+  local edited = cfg.editingSlotIndex or (#slots + 1)
+  local oldEdited = slotPositions[edited]
+  slots[edited], slotPositions[edited] = slotEntry, positions
+
+  local all, stats = {}, {}
+  for i, slot in ipairs(slots) do
+    local list = slotPositions[i] or {}
+    -- 1 = unchanged, so the order keeps the items already laid for this slot
+    local keep = (i ~= edited) or (oldEdited ~= nil and samePositions(oldEdited, list))
+    stats[i] = { firstPosIdx = #all + 1, size = #list, threshold = slot.threshold or config.defaults.threshold, sector = slot.sector, keep = keep and 1 or 0 }
+    for _, p in ipairs(list) do all[#all + 1] = p end
+  end
+  sm.Debug("slot %d of %s: %d positions, %d in all, macro %s", edited, request.key, #positions, #all, cfg.wareMacro)
+
+  SetNPCBlackboard(request.handle, config.slotsVar, slots)
+  SetNPCBlackboard(request.handle, config.slotStatsVar, stats)
+  SetNPCBlackboard(request.handle, config.positionsVar, all)
+  SetNPCBlackboard(request.handle, config.deployableMacroVar, cfg.wareMacro)
+  -- the order's restock needs the build inputs, which script properties do not give for equipment
+  local resources, runAmount = GetWareData(cfg.ware, "resources", "productionamount")
+  local inputs = {}
+  for _, r in ipairs(resources or {}) do inputs[#inputs + 1] = { ware = r.ware, amount = r.amount } end
+  SetNPCBlackboard(request.handle, config.deployableInputsVar, { runAmount = runAmount or 1, wares = inputs })
+  SetNPCBlackboard(request.handle, config.restockNpcVar, cfg.restockNpc and 1 or 0)
+  local opt = (cfg.kind == KIND_MINE) and sm.selectedWareOption(cfg) or {}
+  local mine = opt.mine
+  SetNPCBlackboard(request.handle, config.lowAttentionVar, (mine and cfg.lowAttention) and 1 or 0)
+  -- the scanner's damage and reach for this mine
+  SetNPCBlackboard(request.handle, config.mineStatsVar, mine and {
+    tracking = mine.istracking and 1 or 0, range = mine.proximityrange or 0, follow = opt.follow,
+    damage = mine.explosiondamage or 0, hull = mine.hullexplosiondamage or 0, shield = mine.shieldexplosiondamage or 0,
+  } or nil)
+  sm.finishRequest()
+  AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
+end
+
+function sm.onConfigCancel()
+  local request = sm.finishRequest()
+  if request and not request.req.reviewOnly then
+    sm.Debug("config of %s cancelled", request.key)
+    AddUITriggeredEvent("SmartMinelayer", "ConfigCancelled", request.callbackObject)
+  end
+end
+
+function sm.onConfigReset()
+  local cfg = sm.requests[1] and sm.requests[1].cfg
+  if not (cfg and cfg.originalValues) then return end
+  for _, field in ipairs(SLOT_FIELDS) do cfg[field] = cfg.originalValues[field] end
+  cfg.restockNpc = cfg.originalRestockNpc
+  cfg.lowAttention = cfg.originalLowAttention
+  sm.filterWareOptions(cfg)
+  cfg.activeTab = cfg.editingTabIndex
+  sm.showConfigWindow()
+end
+
+-- menu.getObjectColor exists from 9.00 on
+function sm.getObjectColor(object64)
+  local menu = sm.menu
+  if config.isV9 then
+    return menu.getObjectColor(object64)
+  end
+  local isplayerowned, isonlineobject, isenemy, ishostile = GetComponentData(object64, "isplayerowned", "isonlineobject", "isenemy", "ishostile")
+  local color = Color["text_normal"]
+  if isplayerowned then
+    color = menu.holomapcolor.playercolor
+    if object64 == C.GetPlayerObjectID() then
+      color = menu.holomapcolor.currentplayershipcolor
+    end
+  elseif isonlineobject and menu.getFilterOption("layer_other", false) and menu.getFilterOption("think_diplomacy_highlightvisitor", false) then
+    color = menu.holomapcolor.visitorcolor
+  elseif ishostile then
+    color = menu.holomapcolor.hostilecolor
+  elseif isenemy then
+    color = menu.holomapcolor.enemycolor
+  end
+  return color
+end
+
+-- *** window ***
+
+local function message(t, text)
+  local r = t:addRow(false, { fixed = true })
+  r[1]:setColSpan(3):createText(text, { halign = "center", color = Color["text_warning"], wordwrap = true })
+end
+
+function sm.showConfigWindow()
+  local request = sm.requests[1]
+  local cfg = request and request.cfg
+  local menu = sm.menu
+  if not cfg then return end
+  if sm.configFrame then
+    sm.configFrame = nil
+    Helper.clearFrame(menu, config.frameLayer)
+  end
+
+  local frameW = menu.infoTableWidth
+  local labelW = Helper.scaleX(200)
+  local rowH = Helper.standardTextHeight
+  sm.configFrame = Helper.createFrameHandle(menu, {
+    layer                 = config.frameLayer,
+    width                 = frameW,
+    -- vanilla's right panel slot, so the map centre with the field marker stays visible
+    x                     = Helper.viewWidth - menu.infoTableOffsetX - frameW,
+    y                     = (menu.infoTable2OffsetY or menu.infoTableOffsetY) - Helper.standardContainerOffset,
+    standardButtons       = {},
+    autoFrameHeight       = true,
+    closeOnUnhandledClick = false,
+  })
+  sm.configFrame:setBackground("solid", { color = Color["frame_background_semitransparent"] })
+
+  -- *** tabs: one per slot, plus the add tab when this request adds one ***
+  local sideBarWidth = menu.sideBarWidth
+  local slotList = cfg.slotList
+  local activeTab = cfg.activeTab
+  local showAddTab = cfg.editingTabIndex == #slotList + 1
+  local numTabCols = math.max(1, #slotList + (showAddTab and 1 or 0))
+  local tabT = sm.configFrame:addTable(numTabCols, {
+    tabOrder = 1, x = Helper.borderSize, y = Helper.borderSize,
+    width = numTabCols * (sideBarWidth + Helper.borderSize) - Helper.borderSize,
+    reserveScrollBar = false,
+  })
+  for col = 1, numTabCols do tabT:setColWidth(col, sideBarWidth, false) end
+  local tabRow = tabT:addRow("sm_tabs", { fixed = true })
+  for i = 1, #slotList + (showAddTab and 1 or 0) do
+    local isAdd = i > #slotList
+    tabRow[i]:createButton({
+      active        = true,
+      width         = sideBarWidth,
+      height        = sideBarWidth,
+      bgColor       = (activeTab == i) and Color["row_background_selected"] or Color["row_background_unselectable"],
+      mouseOverText = isAdd and ReadText(PAGE, 30) or (ReadText(PAGE, 1) .. " " .. i),
+      scaling       = false,
+    }):setIcon(isAdd and "sml_tab_icon_add" or ("sml_tab_icon_" .. i), { color = Color["icon_normal"] })
+    tabRow[i].handlers.onClick = function()
+      cfg.activeTab = i
+      sm.showConfigWindow()
+    end
+  end
+
+  -- *** values: live on the editing tab, saved on the others ***
+  local isEditingTab = activeTab == cfg.editingTabIndex
+  local viewSlot = (not isEditingTab) and slotList[activeTab] or nil
+  local disp = {}
+  for _, field in ipairs(SLOT_FIELDS) do
+    disp[field] = isEditingTab and cfg[field] or ((viewSlot and viewSlot[field]) or config.defaults[field])
+  end
+  local dispSector, dispTargetObject, dispTargetObjPos, dispTargetPosition
+  if isEditingTab then
+    dispSector, dispTargetObject, dispTargetObjPos, dispTargetPosition = cfg.sector, cfg.targetObject, cfg.targetObjectPosition, cfg.targetPosition
+  elseif viewSlot then
+    dispSector = viewSlot.sector or (viewSlot.targetPosition and viewSlot.targetPosition[1])
+    dispTargetObject, dispTargetObjPos, dispTargetPosition = viewSlot.targetObject, viewSlot.targetObjectPosition, viewSlot.targetPosition
+  end
+  local itemCount
+  if isEditingTab then
+    itemCount = #sm.computePositions(cfg, false)
+  elseif viewSlot then
+    itemCount = #sm.oldSlotPositions(cfg, activeTab)
+  end
+
+  -- the order shows this point as its map marker while the window is open
+  local px, py, pz
+  if dispTargetObjPos then
+    px, py, pz = dispTargetObjPos.x or 0, dispTargetObjPos.y or 0, dispTargetObjPos.z or 0
+  elseif dispTargetPosition and type(dispTargetPosition[2]) == "table" then
+    local c = dispTargetPosition[2]
+    px, py, pz = c.x or 0, c.y or 0, c.z or 0
+  end
+  if px and dispSector then
+    SetNPCBlackboard(request.handle, config.configPositionVar, { x = px, y = py, z = pz, radius = disp.radius, sector = dispSector })
+  else
+    SetNPCBlackboard(request.handle, config.configPositionVar, nil)
+  end
+
+  local isPlanar = disp.shape ~= 4 and disp.shape ~= 5
+  local hasTargetObject = dispTargetObject ~= nil
+
+  local t = sm.configFrame:addTable(3, {
+    tabOrder = 2, x = Helper.borderSize, y = tabT.properties.y + tabT:getFullHeight() + Helper.borderSize,
+    width = frameW - 2 * Helper.borderSize, defaultInteractiveObject = true,
+  })
+  t:setColWidth(1, labelW, false)
+
+  local r = t:addRow(false, { fixed = true })
+  r[1]:setColSpan(3):createText(ReadText(PAGE, 1), Helper.headerRowCenteredProperties)
+  t:addEmptyRow(Helper.borderSize)
+
+  local function section(textId)
+    local row = t:addRow(false, { fixed = true })
+    row[1]:setColSpan(3):createText(ReadText(PAGE, textId), { halign = "center", titleColor = Color["row_title"] })
+  end
+  local function slider(textId, field, props, enabled)
+    local row = t:addRow(true, { fixed = true })
+    row[1]:createText(ReadText(PAGE, textId), { halign = "left" })
+    props.height, props.bgColor, props.start = rowH, Color["slider_background_transparent"], disp[field]
+    props.minSelect, props.maxSelect = props.min, props.max
+    props.readOnly = not enabled
+    props.valueColor = (not enabled) and Color["slider_value_inactive"] or nil
+    row[2]:setColSpan(2):createSliderCell(props)
+    row[2].handlers.onSliderCellActivated = function() if enabled then menu.noupdate = true end end
+    row[2].handlers.onSliderCellDeactivated = function() menu.noupdate = false; sm.showConfigWindow() end
+    row[2].handlers.onSliderCellChanged = function(_, val) if enabled then cfg[field] = val end end
+    return row
+  end
+  local function dropdown(textId, field, options, enabled)
+    local row = t:addRow(true, { fixed = true })
+    row[1]:createText(ReadText(PAGE, textId), { halign = "left" })
+    row[2]:setColSpan(2):createDropDown(options, { startOption = disp[field], active = enabled })
+    row[2].handlers.onDropDownActivated = function() if enabled then menu.noupdate = true end end
+    row[2].handlers.onDropDownConfirmed = function(_, id)
+      menu.noupdate = false
+      if enabled then cfg[field] = tonumber(id) end
+      sm.showConfigWindow()
+    end
+  end
+  local function options(firstText, count, firstId)
+    local list = {}
+    for i = 0, count - 1 do
+      list[#list + 1] = { id = firstId + i, icon = "", text = ReadText(PAGE, firstText + i), displayremoveoption = false }
+    end
+    return list
+  end
+
+  -- *** target ***
+  section(100)
+  local sector64 = dispSector and ConvertIDTo64Bit(dispSector) or 0
+  r = t:addRow(false, { fixed = true, bgColor = Color["row_background_unselectable"] })
+  r[1]:createText(ReadText(PAGE, 110), { halign = "left" })
+  r[2]:setColSpan(2):createText((sector64 ~= 0) and (GetComponentData(sector64, "name") or "---") or "---",
+    { halign = "left", color = (sector64 ~= 0) and sm.getObjectColor(sector64) or nil })
+  local targetLabelId, targetText, targetColor = 10, "---", nil
+  if dispTargetObject then
+    local target64 = ConvertIDTo64Bit(dispTargetObject)
+    local name, idcode = GetComponentData(target64, "name", "idcode")
+    targetLabelId = 20
+    targetText = idcode and ((name or "---") .. " (" .. idcode .. ")") or (name or "---")
+    targetColor = sm.getObjectColor(target64)
+  elseif px then
+    targetText = string.format("%.0f / %.0f / %.0f", px, py, pz)
+  end
+  r = t:addRow(false, { fixed = true, bgColor = Color["row_background_unselectable"] })
+  r[1]:createText(ReadText(PAGE, targetLabelId), { halign = "left" })
+  r[2]:setColSpan(2):createText(targetText, { halign = "left", color = targetColor })
+  t:addEmptyRow(Helper.borderSize)
+
+  -- *** deployable: one ware per ship ***
+  section(200)
+  local kindOptions = {
+    { id = KIND_MINE, icon = "", text = ReadText(1001, 1326), displayremoveoption = false },
+    { id = KIND_TOWER, icon = "", text = ReadText(1001, 1333), displayremoveoption = false },
+  }
+  r = t:addRow(true, { fixed = true })
+  r[1]:createText(ReadText(1001, 6400), { halign = "left" })
+  r[2]:setColSpan(2):createDropDown(kindOptions, { startOption = cfg.kind, active = isEditingTab and not cfg.existingDeployableMacro })
+  r[2].handlers.onDropDownActivated = function() menu.noupdate = true end
+  r[2].handlers.onDropDownConfirmed = function(_, id)
+    menu.noupdate = false
+    cfg.kind = tonumber(id) or KIND_MINE
+    sm.filterWareOptions(cfg)
+    sm.showConfigWindow()
+  end
+  if cfg.kind == KIND_MINE then
+    -- the whole order's setting, shown on every tab
+    r = t:addRow(true, { fixed = true })
+    r[1]:createText(ReadText(PAGE, 220), { halign = "left", mouseOverText = ReadText(PAGE, 221) })
+    r[2]:createCheckBox(cfg.lowAttention, { active = isEditingTab and cfg.canLowAttention, width = rowH, height = rowH, mouseOverText = ReadText(PAGE, 221) })
+    r[2].handlers.onClick = function(_, checked)
+      cfg.lowAttention = checked
+      sm.filterWareOptions(cfg)
+      sm.showConfigWindow()
+    end
+  end
+  local wareOptions = cfg.deployableWareOptions or {}
+  local wareMacroByWare = {}
+  for _, opt in ipairs(wareOptions) do wareMacroByWare[opt.id] = opt.macro end
+  r = t:addRow(true, { fixed = true })
+  r[1]:createText(ReadText(PAGE, 210), { halign = "left" })
+  r[2]:setColSpan(2):createDropDown(wareOptions, { startOption = cfg.ware, active = isEditingTab and #wareOptions > 0 and not cfg.existingDeployableMacro })
+  r[2].handlers.onDropDownActivated = function() menu.noupdate = true end
+  r[2].handlers.onDropDownConfirmed = function(_, id)
+    menu.noupdate = false
+    cfg.ware, cfg.wareMacro = id, wareMacroByWare[id] or ""
+    sm.showConfigWindow()
+  end
+
+  -- *** shape ***
+  t:addEmptyRow(Helper.borderSize)
+  section(300)
+  dropdown(310, "shape", options(311, 6, 1), isEditingTab)
+  local radiusRow = slider(320, "radius", { min = 500, max = 30000, step = 500 }, isEditingTab)
+  radiusRow[2].handlers.onSliderCellChanged = function(_, val)
+    if not isEditingTab then return end
+    cfg.radius = val
+    local pos = GetNPCBlackboard(request.handle, config.configPositionVar)
+    if type(pos) == "table" then
+      pos.radius = val
+      SetNPCBlackboard(request.handle, config.configPositionVar, pos)
+    end
+  end
+  dropdown(330, "density", options(331, 5, 1), isEditingTab)
+  dropdown(340, "planeOrientation", options(341, 3, 0), isEditingTab and isPlanar)
+
+  -- *** concentric shapes and parallel layers ***
+  t:addEmptyRow(Helper.borderSize)
+  section(400)
+  slider(410, "concentricShapesCount", { min = 0, max = 4, step = 1 }, isEditingTab)
+  slider(420, "concentricShapesSpacing", { min = 200, max = 10000, step = 200 }, isEditingTab)
+  t:addEmptyRow(Helper.borderSize)
+  section(500)
+  slider(510, "parallelLayersCount", { min = 0, max = 4, step = 1 }, isEditingTab and isPlanar)
+  slider(520, "parallelLayersSpacing", { min = 200, max = 5000, step = 100 }, isEditingTab and isPlanar)
+
+  -- *** offset from the target object ***
+  t:addEmptyRow(Helper.borderSize)
+  section(600)
+  dropdown(610, "offsetDirection", options(611, 7, 0), isEditingTab and hasTargetObject)
+  slider(620, "offsetDistance", { min = 200, max = 50000, step = 200 }, isEditingTab and hasTargetObject and disp.offsetDirection > 0)
+
+  -- *** maintenance ***
+  t:addEmptyRow(Helper.borderSize)
+  section(700)
+  slider(710, "threshold", { min = 0, max = 100, step = 5 }, isEditingTab)
+  -- the whole order's setting, shown on every tab
+  r = t:addRow(true, { fixed = true })
+  r[1]:createText(ReadText(PAGE, 720), { halign = "left", mouseOverText = ReadText(PAGE, 721) })
+  r[2]:createCheckBox(cfg.restockNpc, { active = isEditingTab, width = rowH, height = rowH, mouseOverText = ReadText(PAGE, 721) })
+  r[2].handlers.onClick = function(_, checked) cfg.restockNpc = checked end
+  r = t:addRow(false, { fixed = true, bgColor = Color["row_background_unselectable"] })
+  r[1]:createText(ReadText(PAGE, 350), { halign = "left" })
+  r[2]:setColSpan(2):createText(itemCount and tostring(itemCount) or "---", { halign = "left" })
+
+  local tooMany = isEditingTab and itemCount > config.maxItemsPerSlot
+  if cfg.slotLimitReached then message(t, string.format(tostring(ReadText(PAGE, 10017)), config.maxSlots)) end
+  if isEditingTab and #wareOptions == 0 then message(t, ReadText(PAGE, 10007)) end
+  if tooMany then message(t, string.format(tostring(ReadText(PAGE, 10019)), itemCount, config.maxItemsPerSlot)) end
+  t:addEmptyRow(rowH / 2)
+
+  -- *** buttons ***
+  local bt = sm.configFrame:addTable(12, {
+    tabOrder = 3, x = Helper.borderSize, y = t.properties.y + t:getFullHeight() + Helper.borderSize,
+    width = frameW - 2 * Helper.borderSize,
+  })
+  local btnRow = bt:addRow("sm_buttons", { fixed = true })
+  local canConfirm = isEditingTab and cfg.wareMacro ~= "" and itemCount > 0 and not tooMany
+  btnRow[1]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = canConfirm }):setText(ReadText(1001, 2821), { halign = "center" })
+  btnRow[1].handlers.onClick = sm.onConfigOK
+  if cfg.originalValues then
+    btnRow[5]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = isEditingTab }):setText(ReadText(PAGE, 31), { halign = "center" })
+    btnRow[5].handlers.onClick = sm.onConfigReset
+  end
+  local cancelText = (cfg.reviewOnly or cfg.slotLimitReached) and ReadText(1001, 2670) or ReadText(1001, 64)
+  btnRow[9]:setColSpan(4):createButton({ height = Helper.standardButtonHeight }):setText(cancelText, { halign = "center" })
+  btnRow[9].handlers.onClick = sm.onConfigCancel
+  bt:addEmptyRow(Helper.borderSize)
+
+  sm.configFrame:display()
+end
+
+-- *** map hooks ***
+
+local function hookMap(menu)
+  local onUpdate = menu.onUpdate
+  menu.onUpdate = function(...)
+    onUpdate(...)
+    local request = sm.requests[1]
+    if request and not sm.configFrame and menu.shown and menu.holomap and menu.holomap ~= 0 then
+      local ok, err = pcall(sm.openRequest, request)
+      if not ok then
+        sm.Error("config window of %s failed: %s", request.key, tostring(err))
+        sm.onConfigCancel()
+      end
+    end
+  end
+  local cleanup = menu.cleanup
+  menu.cleanup = function(...)
+    sm.dropWindow()
+    return cleanup(...)
+  end
+  -- Escape cancels the window, unless a vanilla context menu is open above it
+  local onCloseElement = menu.onCloseElement
+  menu.onCloseElement = function(dueToClose, ...)
+    if sm.configFrame and dueToClose == "back" and not menu.contextMenuMode then
+      sm.onConfigCancel()
+      return
+    end
+    return onCloseElement(dueToClose, ...)
+  end
+end
+
+local function Init()
+  sm.menu = Helper.getMenu("MapMenu")
+  sm.ReadConfig()
+  RegisterEvent("SmartMinelayer.Configure", sm.onConfigure)
+  RegisterEvent("SmartMinelayer.ConfigChanged", sm.ReadConfig)
+  if sm.menu then
+    hookMap(sm.menu)
+  else
+    sm.Error("MapMenu not found, the config window cannot open")
+  end
+  sm.Debug("initialised")
+end
+
+Register_OnLoad_Init(Init)

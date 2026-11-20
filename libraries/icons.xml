@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+    <add sel="/icons">
+        <icon name="order_smartminelayer" texture="assets\textures\ui\map_objects\mapob_mine.tga" height="32" width="32" />
+        <icon name="sml_tab_icon_1" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_1.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_2" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_2.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_3" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_3.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_4" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_4.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_5" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_5.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_6" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_6.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_7" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_7.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_8" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_8.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_9" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_9.tga" height="128" width="128"/>
+        <icon name="sml_tab_icon_add" texture="extensions\smart_minelayer\assets\fx\gui\textures\minelayer\icon_add.tga" height="128" width="128"/>
+    </add>
+</diff>

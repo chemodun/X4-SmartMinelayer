@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="SmartMinelayerContextMenu" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <!-- "Configure Smart Minelayer" on a ship whose default order is Smart Minelayer: opens its slots for review. -->
+  <cues>
+    <cue name="Main" version="1">
+      <actions>
+        <set_value name="$uixInteractMenuPresent" exact="false" />
+      </actions>
+      <cues>
+
+        <cue name="SML_On_Reload" instantiate="true">
+          <conditions>
+            <check_any>
+              <event_cue_signalled cue="md.Interact_Menu_API.Reloaded" />
+              <event_game_loaded />
+            </check_any>
+          </conditions>
+          <actions>
+            <set_value name="$uixInteractMenuPresent" exact="false" />
+            <raise_lua_event name="'Interact_Menu_API.Existence_Query'" />
+            <reset_cue cue="this" />
+          </actions>
+        </cue>
+
+        <cue name="SML_On_UIX_Present" instantiate="true">
+          <conditions>
+            <event_ui_triggered screen="'UIX_Interact_Menu_Present'" />
+          </conditions>
+          <actions>
+            <set_value name="$uixInteractMenuPresent" exact="true" />
+            <raise_lua_event name="'Interact_Menu_API.Add_Custom_Actions_Group_Id'" param="'smart_minelayer_group'" />
+            <raise_lua_event name="'Interact_Menu_API.Add_Custom_Actions_Group_Text'" param="{1972092417, 1}" />
+            <reset_cue cue="this" />
+          </actions>
+        </cue>
+
+        <cue name="SML_Add_Menu_Actions" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
+            <check_value value="@event.param.$object.exists" />
+            <check_value value="@event.param.$object.defaultorder.id == 'SmartMinelayer'" />
+          </conditions>
+          <actions>
+            <set_value name="$section" exact="if @$uixInteractMenuPresent then 'smart_minelayer_group' else 'interaction'" />
+            <signal_cue_instantly
+              cue="md.Interact_Menu_API.Add_Action"
+              param="table[
+                $id       = 'smart_minelayer_configure',
+                $section  = $section,
+                $text     = {1972092417, 10016},
+                $active   = @event.param.$object.pilot.$SmartMinelayerSlotList.count gt 0,
+                $callback = SML_Configure_Callback,
+              ]" />
+            <remove_value name="$section" />
+          </actions>
+        </cue>
+
+        <cue name="SML_Configure_Callback" instantiate="true">
+          <conditions>
+            <event_cue_signalled />
+          </conditions>
+          <actions>
+            <include_actions ref="md.SmartMinelayer.ReadDebugChances" />
+            <set_value name="$configShip" exact="event.param.$object" />
+            <do_if value="@$configShip.defaultorder.id == 'SmartMinelayer' and @$configShip.pilot.$SmartMinelayerSlotList.count gt 0">
+              <!-- a request the order is waiting for is shown as it is, not replaced by a review -->
+              <do_if value="not @$configShip.pilot.$SmartMinelayerConfigRequestData or @$configShip.pilot.$SmartMinelayerConfigRequestData.$reviewOnly">
+                <set_value name="$configShip.pilot.$SmartMinelayerConfigRequestData" exact="table[
+                  $callbackObject = $configShip,
+                  $reviewOnly = true,
+                  $equipmentStations = []]" />
+              </do_if>
+              <raise_lua_event name="'SmartMinelayer.Configure'" param="$configShip.pilot" />
+              <debug_text text="'SmartMinelayer: context menu opened the config window for %s'.[$configShip.debugname]" chance="$debugChance" />
+            </do_if>
+            <remove_value name="$configShip" />
+            <include_actions ref="md.SmartMinelayer.ClearDebugChances" />
+          </actions>
+        </cue>
+
+      </cues>
+    </cue>
+  </cues>
+</mdscript>

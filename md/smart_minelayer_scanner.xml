@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="SmartMinelayerScanner" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <!-- The engine drops a mine's trigger sensor below attention visible; this script detonates such mines instead. -->
+  <cues>
+
+    <library name="SML_ScannerParams" purpose="include_actions">
+      <actions>
+        <set_value name="$scanInterval" exact="5s" />
+        <set_value name="$maxFieldsPerTick" exact="2" />
+      </actions>
+    </library>
+
+    <!-- in $stats (from the window, may be null); out $reach, $damage, $hull, $shield -->
+    <library name="SML_MineValues" purpose="include_actions">
+      <actions>
+        <!-- a tracking mine's follow range, when the window gave none: 1000 m on every vanilla one -->
+        <set_value name="$reach" exact="1000m" />
+        <set_value name="$damage" exact="10000" />
+        <set_value name="$hull" exact="0" />
+        <set_value name="$shield" exact="0" />
+        <do_if value="$stats">
+          <do_if value="$stats.$tracking != 1">
+            <set_value name="$reach" exact="($stats.$range)m" />
+          </do_if>
+          <do_elseif value="$stats.$follow? and $stats.$follow gt 0">
+            <set_value name="$reach" exact="($stats.$follow)m" />
+          </do_elseif>
+          <set_value name="$damage" exact="$stats.$damage" />
+          <set_value name="$hull" exact="$stats.$hull" />
+          <set_value name="$shield" exact="$stats.$shield" />
+        </do_if>
+      </actions>
+    </library>
+
+    <cue name="Scanner" namespace="this">
+      <actions>
+        <set_value name="$fields" exact="table[]" />
+      </actions>
+      <cues>
+
+        <!-- param2 = table[$key = field key, $stats = mine values or null], param3 = launched mine -->
+        <cue name="MineLaunched" instantiate="true">
+          <conditions>
+            <event_object_signalled object="player.galaxy" param="'SmartMinelayer.MineLaunched'" />
+          </conditions>
+          <actions>
+            <include_actions ref="md.SmartMinelayer.ReadDebugChances" />
+            <set_value name="$key" exact="@event.param2.$key" />
+            <set_value name="$mine" exact="event.param3" />
+            <do_if value="@$key and @$mine.isclass.mine and @$mine.isfriendfoe">
+              <do_if value="not $fields.{$key}?">
+                <set_value name="$stats" exact="@event.param2.$stats" />
+                <include_actions ref="SML_MineValues" />
+                <create_group groupname="$newMines" />
+                <set_value name="$fields.{$key}" exact="table[$mines = $newMines, $sector = $mine.sector, $count = 0, $nextScan = player.age, $reach = $reach, $damage = $damage, $hull = $hull, $shield = $shield]" />
+                <remove_value name="$newMines" />
+                <debug_text text="'SmartMinelayer: scanner field %s created in %s, reach %s, damage %s, hull %s, shield %s'.[$key, $mine.sector.debugname, $reach, $damage, $hull, $shield]" chance="$debugChance" />
+                <remove_value name="$stats" />
+                <remove_value name="$reach" />
+                <remove_value name="$damage" />
+                <remove_value name="$hull" />
+                <remove_value name="$shield" />
+              </do_if>
+              <set_value name="$fieldMines" exact="$fields.{$key}.$mines" />
+              <add_to_group groupname="$fieldMines" object="$mine" />
+              <!-- forces the bounds to be rebuilt on the next scan -->
+              <set_value name="$fields.{$key}.$count" exact="0" />
+              <debug_text text="'SmartMinelayer: scanner field %s got %s, mines %s'.[$key, $mine.debugname, $fieldMines.count]" chance="$traceChance" />
+              <remove_value name="$fieldMines" />
+            </do_if>
+            <do_else>
+              <debug_text text="'SmartMinelayer: scanner ignored launch, key %s, object %s'.[@$key, @$mine.debugname]" chance="$debugChance" />
+            </do_else>
+            <remove_value name="$key" />
+            <remove_value name="$mine" />
+            <remove_value name="$debugChance" />
+            <remove_value name="$traceChance" />
+          </actions>
+        </cue>
+
+        <cue name="Tick">
+          <delay exact="1s" />
+          <actions>
+            <include_actions ref="md.SmartMinelayer.ReadDebugChances" />
+            <include_actions ref="SML_ScannerParams" />
+            <set_value name="$due" exact="[]" />
+            <do_for_each name="$key" in="$fields.keys.list">
+              <do_if value="$fields.{$key}.$mines.count == 0">
+                <remove_value name="$fields.{$key}" />
+                <debug_text text="'SmartMinelayer: scanner field %s is empty, removed'.[$key]" chance="$debugChance" />
+              </do_if>
+              <do_elseif value="$fields.{$key}.$nextScan le player.age">
+                <append_to_list name="$due" exact="$key" />
+              </do_elseif>
+            </do_for_each>
+            <!-- the longest overdue first, so no field starves when more are due than one tick scans -->
+            <do_if value="$due.count gt $maxFieldsPerTick">
+              <sort_list list="$due" sortbyvalue="$fields.{loop.element}.$nextScan" />
+            </do_if>
+
+            <do_all exact="[$due.count, $maxFieldsPerTick].min" counter="$n">
+              <set_value name="$key" exact="$due.{$n}" />
+              <set_value name="$field" exact="$fields.{$key}" />
+              <set_value name="$mines" exact="$field.$mines" />
+              <set_value name="$field.$nextScan" exact="player.age + $scanInterval" />
+              <!-- a field from before the values were stored -->
+              <do_if value="not $field.$reach?">
+                <set_value name="$stats" exact="null" />
+                <include_actions ref="SML_MineValues" />
+                <set_value name="$field.$reach" exact="$reach" />
+                <set_value name="$field.$damage" exact="$damage" />
+                <set_value name="$field.$hull" exact="$hull" />
+                <set_value name="$field.$shield" exact="$shield" />
+              </do_if>
+
+              <!-- a group drops destroyed mines by itself, so a changed count is the only sign of a loss -->
+              <do_if value="$mines.count != $field.$count">
+                <set_value name="$sx" exact="0m" />
+                <set_value name="$sy" exact="0m" />
+                <set_value name="$sz" exact="0m" />
+                <do_for_each name="$m" in="$mines">
+                  <create_position name="$p" space="$field.$sector" object="$m" />
+                  <set_value name="$sx" operation="add" exact="$p.x" />
+                  <set_value name="$sy" operation="add" exact="$p.y" />
+                  <set_value name="$sz" operation="add" exact="$p.z" />
+                </do_for_each>
+                <set_value name="$field.$center" exact="position.[$sx / $mines.count, $sy / $mines.count, $sz / $mines.count]" />
+                <set_value name="$field.$radius" exact="0m" />
+                <do_for_each name="$m" in="$mines">
+                  <set_value name="$d" exact="$m.distanceto.[$field.$sector, $field.$center]" />
+                  <do_if value="$d gt $field.$radius">
+                    <set_value name="$field.$radius" exact="$d" />
+                  </do_if>
+                </do_for_each>
+                <set_value name="$field.$count" exact="$mines.count" />
+                <debug_text text="'SmartMinelayer: scanner field %s bounds: mines %s, center %s, radius %s'.[$key, $mines.count, $field.$center, $field.$radius]" chance="$debugChance" />
+              </do_if>
+
+              <find_ship name="$ships" space="$field.$sector" multiple="true" docked="false">
+                <match_distance space="$field.$sector" value="$field.$center" max="$field.$radius + $field.$reach" />
+                <match_relation_of object="$mines.{1}" relation="enemy" comparison="le" />
+              </find_ship>
+              <set_value name="$found" exact="$ships.count" />
+              <set_value name="$checks" exact="0" />
+              <set_value name="$hits" exact="0" />
+              <do_if value="$ships.count gt 0">
+                <do_for_each name="$m" in="$mines.list">
+                  <do_if value="$ships.count == 0">
+                    <break />
+                  </do_if>
+                  <!-- at visible and above the engine's own sensor does the work -->
+                  <do_if value="$m.attention lt attention.visible">
+                    <do_for_each name="$s" in="$ships">
+                      <set_value name="$checks" operation="add" />
+                      <do_if value="$m.distanceto.{$s} le $field.$reach">
+                        <set_value name="$victim" exact="$s" />
+                        <break />
+                      </do_if>
+                    </do_for_each>
+                    <do_if value="$victim?">
+                      <apply_attackstrength object="$victim" attacker="$m" explosion="true" hullshield="$field.$damage" hullonly="$field.$hull" shieldonly="$field.$shield" hullnoshield="0">
+                        <result killed="$killed" />
+                      </apply_attackstrength>
+                      <debug_text text="'SmartMinelayer: scanner field %s: %s detonated on %s, killed %s'.[$key, $m.debugname, $victim.debugname, @$killed]" chance="$debugChance" />
+                      <do_if value="@$killed">
+                        <remove_from_list name="$ships" exact="$victim" />
+                      </do_if>
+                      <destroy_object object="$m" explosion="true" />
+                      <set_value name="$hits" operation="add" />
+                      <remove_value name="$victim" />
+                      <remove_value name="$killed" />
+                    </do_if>
+                  </do_if>
+                </do_for_each>
+              </do_if>
+              <debug_text text="'SmartMinelayer: scanner field %s scan: mines %s, ships %s, checks %s, hits %s'.[$key, $mines.count, $found, $checks, $hits]" chance="$traceChance" />
+            </do_all>
+
+            <remove_value name="$due" />
+            <remove_value name="$n" />
+            <remove_value name="$key" />
+            <remove_value name="$field" />
+            <remove_value name="$mines" />
+            <remove_value name="$ships" />
+            <remove_value name="$m" />
+            <remove_value name="$s" />
+            <remove_value name="$p" />
+            <remove_value name="$d" />
+            <remove_value name="$sx" />
+            <remove_value name="$sy" />
+            <remove_value name="$sz" />
+            <remove_value name="$found" />
+            <remove_value name="$checks" />
+            <remove_value name="$hits" />
+            <remove_value name="$scanInterval" />
+            <remove_value name="$maxFieldsPerTick" />
+            <remove_value name="$stats" />
+            <remove_value name="$reach" />
+            <remove_value name="$damage" />
+            <remove_value name="$hull" />
+            <remove_value name="$shield" />
+            <remove_value name="$debugChance" />
+            <remove_value name="$traceChance" />
+            <reset_cue cue="this" />
+          </actions>
+        </cue>
+
+      </cues>
+    </cue>
+
+  </cues>
+</mdscript>

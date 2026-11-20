@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  <!-- a mine as attacker is not a controllable: skip the cue instead of logging an error -->
+  <add sel="//cue[@name='PlayerOwnedShipAttacks']/conditions/check_any/check_all[1]/check_value[@value='not event.param.isclass.spacesuit']" pos="after">
+    <check_value value="not event.param.isclass.mine" />
+  </add>
+</diff>

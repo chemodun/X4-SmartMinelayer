@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  <!-- a mine as attacker has no dps to weigh and is gone after the hit: no fight or flight response -->
+  <add sel="/aiscript/interrupts/library/handler[@name='AttackHandler']/conditions/check_value[@value='event.param.isoperational and event.object.mayattack.{event.param}']" pos="after">
+    <check_value value="not event.param.isclass.mine" />
+  </add>
+</diff>
