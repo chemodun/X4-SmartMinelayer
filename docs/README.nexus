@@ -1,0 +1,111 @@
+[size=4][u]Smart Minelayer[/u][/size]
+
+Laying a minefield by hand means placing every mine yourself and coming back whenever the field thins out, and while you are away the game leaves the mines inert. This extension adds the [b]Smart Minelayer[/b] order: the ship lays mines or laser towers in a pattern you design on the map, refills the losses on its own, restocks itself when it runs out, and its friend/foe mines keep fighting while you are far away.
+
+[size=3][u][b]Features[/b][/u][/size]
+[list]
+[*] [b]Patterns[/b]: circle, square, hexagon, sphere, cube or the X4 logo, around a point in space or around a station or gate, with a radius, a density and a plane orientation. Concentric shapes, parallel layers and an offset from the target build larger fields from one pattern.
+[*] [b]Up to nine fields per ship[/b]: each field, called a slot, has its own target, sector, pattern and item count (up to 1000 items). Changing one slot leaves the items of the others in place.
+[*] [b]Mines or laser towers[/b]: any mine or laser tower the ship can carry. Package mines that release a whole cluster at once, such as the Cluster Mine, are left out.
+[*] [b]Active While You Are Away[/b]: with this option, friend/foe mines detonate on enemy ships while you are far from the field, where the game otherwise leaves them inert. A mine reaches as far as its trigger range, a tracking mine as far as it follows a target.
+[*] [b]Automatic refill[/b]: when a slot's losses reach its replacement threshold, the ship flies out and lays the missing items again.
+[*] [b]Own restock[/b]: when the ship runs out of items, it buys them on its own. It looks for your own supply ships and stations first, free of charge, near its sector before farther away. With [b]Restock at Other Factions' Stations[/b] it may also buy at other factions' stations, at their price and only as many as you can pay for.
+[*] [b]Experience for kills[/b]: when the mines or laser towers of the ship or its wingmen destroy an enemy ship, the pilot and service crew of the ship and of every wingman gain experience, as they would from the game's attack order.
+[*] [b]Wingmen[/b]: ships assigned to the minelayer with the [b]Assist[/b] order lay, refill and restock the same fields together with it.
+[*] [b]Waiting[/b]: between refills the ship docks at the nearest station in the field's sector that lets it, or waits in open space a few kilometres off the field's edge.
+[/list]
+[size=3][u][b]Limitations[/b][/u][/size]
+[list]
+[*] S, M and L ships only: XL ships are not offered the order.
+[*] One kind of item per ship: once the order holds a mine or laser tower, the window keeps it. To lay another kind, give the ship a new order.
+[*] Without [b]Active While You Are Away[/b], mines behave as in the game: they act only while you are near the field. Only friend/foe mines can be chosen with the option on.
+[*] While you are away, a mine hits the first enemy ship within its reach; there is no hit chance.
+[*] When you change a slot's pattern, the items already laid for it stay in space but are no longer refilled.
+[*] A restock that fails five times in a row stops the order with a message. A trip cut short by your own edit of the order or by another order does not count.
+[*] The extension patches two game AI scripts, [b]order.assist.xml[/b] and [b]interrupt.attacked.xml[/b], and one mission script, [b]notifications.xml[/b]. The patches are small, but another mod that patches or replaces the same scripts can still conflict with it.
+[/list]
+[size=3][u][b]Requirements[/b][/u][/size]
+[list]
+[*] [b]X4: Foundations[/b]: Version [b]8.00[/b] or higher on Windows, or [b]9.00[/b] on the native Linux version.
+[*] [b]Mod Support APIs[/b]: Version [b]1.95[/b] or higher by [url=https://next.nexusmods.com/profile/sirnukes?gameId=2659]SirNukes[/url].
+[list]
+[*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2042901274]SirNukes Mod Support APIs[/url]
+[*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/503]Mod Support APIs[/url]
+[/list]
+[*] [b]Options Helper[/b]: Version [b]1.10[/b] or higher by [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Chem O`Dun[/url].
+[list]
+[*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3715253556]Options Helper[/url]
+[*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/2089]Options Helper[/url]
+[/list]
+[*] [b]Print Extension List[/b]: Version [b]1.00[/b] or higher by [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Chem O`Dun[/url].
+[list]
+[*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3770927339]Print Extension List[/url]
+[*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/2191]Print Extension List[/url]
+[/list]
+[*] [b]Lua Log API[/b]: Version [b]1.00[/b] or higher by [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Chem O`Dun[/url].
+[list]
+[*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3823580916]Lua Log API[/url]
+[*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/2473]Lua Log API[/url]
+[/list]
+[*] [b]Extra UI API[/b]: Version [b]1.05[/b] or higher by [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Chem O`Dun[/url], which tells which mines come as a package and how far a tracking mine follows its target.
+[list]
+[*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3839783822]Extra UI API[/url]
+[*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/2602]Extra UI API[/url]
+[/list]
+[/list]
+[size=3][u][b]Installation[/b][/u][/size]
+
+You can download the latest version via Steam client - [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3843065392]Smart Minelayer[/url]
+Or you can do it via the Nexus Mods - [url=https://www.nexusmods.com/x4foundations/mods/0]Smart Minelayer[/url]
+
+[size=3][u][b]Save state[/b][/u][/size]
+
+[b]No[/b] (removing the extension does not break saves).
+
+[size=3][u][b]Usage[/b][/u][/size]
+
+Select a ship that carries mines or laser towers, open its [b]Behaviour[/b] on the map and choose [b]Smart Minelayer[/b]. Set [b]Target Position[/b] to a point in space, or [b]Target Object[/b] to a station or gate, turn on [b]Add Position[/b] and confirm. The configuration window opens on the map.
+
+[img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/behaviour.png[/img]
+
+In the [b]Deployable[/b] section pick the type, [b]Mines[/b] or [b]Laser Towers[/b], and the item. With [b]Mines[/b], [b]Active While You Are Away[/b] is on by default and offers only friend/foe mines; turn it off to choose any mine.
+
+In [b]Shape[/b], [b]Concentric Shapes[/b], [b]Parallel Layers[/b] and [b]Offset[/b] design the field. The window shows how many items the slot needs.
+
+In [b]Maintenance[/b] set the [b]Replacement Threshold[/b]: the share of a slot's items that must be lost before the ship refills it, 0 for at once. [b]Restock at Other Factions' Stations[/b] lets the ship buy at stations that are not yours; a new order starts with your last choice.
+
+[img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/config_window.png[/img]
+
+Confirm, and the ship flies to the field and lays it. For another field, set a new target and turn on [b]Add Position[/b] again; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change.
+
+[img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_x4_logo.png[/img]
+
+To look at a ship's slots, choose [b]Configure Smart Minelayer[/b] in its context menu; with UI Extensions installed it is under [b]Smart Minelayer[/b] in [b]Custom Actions[/b].
+
+[img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_menu.png[/img]
+
+[size=3][u][b]Options[/b][/u][/size]
+
+An options page is available via the [b]Extension Options[/b] menu: it sets the debug level of the extension's log.
+
+[img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/options.png[/img]
+
+[size=3][u][b]Credits[/b][/u][/size]
+[list]
+[*] Author: Chem O`Dun, on [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Nexus Mods[/url] and [url=https://steamcommunity.com/id/chemodun/myworkshopfiles/?appid=392160]Steam Workshop[/url]
+[*] [i]"X4: Foundations"[/i] is a trademark of [url=https://www.egosoft.com]Egosoft[/url].
+[/list]
+[size=3][u][b]Acknowledgements[/b][/u][/size]
+[list]
+[*] [url=https://www.egosoft.com]EGOSOFT[/url] - for the X series.
+[*] [url=https://next.nexusmods.com/profile/sirnukes?gameId=2659]SirNukes[/url] - for the Mod Support APIs that power the UI hooks.
+[/list]
+[size=3][u][b]Changelog[/b][/u][/size]
+
+[size=3][u][i][1.00] - unreleased[/i][/u][/size]
+[list]
+[*] [b]Added[/b]
+[list]
+[*] Initial public version
+[/list]
+[/list]
