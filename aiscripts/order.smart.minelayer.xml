@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
+<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="3">
   <!-- Lays mines or laser towers on the positions the config window computed and refills each slot past its loss threshold. -->
   <order id="SmartMinelayer" name="{1972092417, 1}" description="{1972092417, 2}" category="combat" infinite="true" allowinloop="false">
     <params>
@@ -659,20 +659,29 @@
       <do_if value="this.assignedcontrolled.dock">
         <run_script name="'move.undock'" />
       </do_if>
+      <!-- the ship stops short of the point: in high attention the warped item would hit its hull -->
+      <create_position name="$shipPos" space="$placingSector" object="this.assignedcontrolled" />
+      <set_value name="$standRatio" exact="(this.assignedcontrolled.size + 100m) / [$shipPos.distanceto.{$placingPosition}, 1m].max" />
+      <do_if value="$shipPos.distanceto.{$placingPosition} lt 1m">
+        <create_position name="$shipPos" x="$placingPosition.x + 1m" y="$placingPosition.y" z="$placingPosition.z" />
+      </do_if>
+      <create_position name="$standPosition" x="$placingPosition.x + ($shipPos.x - $placingPosition.x) * $standRatio" y="$placingPosition.y + ($shipPos.y - $placingPosition.y) * $standRatio" z="$placingPosition.z + ($shipPos.z - $placingPosition.z) * $standRatio" />
+      <remove_value name="$shipPos" />
+      <remove_value name="$standRatio" />
       <!-- in high attention the exact move can stall a few metres short, or circle a blocked spot -->
-      <set_value name="$exactMoveTime" exact="(this.assignedcontrolled.distanceto.[$placingSector, $placingPosition] / [this.assignedcontrolled.unboostedmaxspeed, 1m].max * 3)s + 30s" />
+      <set_value name="$exactMoveTime" exact="(this.assignedcontrolled.distanceto.[$placingSector, $standPosition] / [this.assignedcontrolled.unboostedmaxspeed, 1m].max * 3)s + 30s" />
       <set_value name="$exactMoveEnd" exact="player.age + $exactMoveTime" />
       <move_to object="this.assignedcontrolled" destination="$placingSector" travel="false" boost="false" useblacklist="blacklistgroup.military" uselocalhighways="false" forceposition="true">
-        <position value="$placingPosition" />
+        <position value="$standPosition" />
         <interrupt_after_time time="$exactMoveTime" />
       </move_to>
-      <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $placingPosition] gt 10m">
+      <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $standPosition] gt 10m">
         <wait min="10ms" max="30ms" />
         <set_value name="$approachCounter" operation="add" />
         <do_if value="$approachCounter gt 10 or player.age ge $exactMoveEnd">
           <!-- close enough is good enough; far off means the spot is blocked, so try it again later -->
-          <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $placingPosition] gt 500m">
-            <debug_text text="'SmartMinelayer: %s cannot reach position %s, %s away, queued again'.[this.assignedcontrolled.debugname, $posIdx, this.assignedcontrolled.distanceto.[$placingSector, $placingPosition]]" filter="error" />
+          <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $standPosition] gt 500m">
+            <debug_text text="'SmartMinelayer: %s cannot reach position %s, %s away, queued again'.[this.assignedcontrolled.debugname, $posIdx, this.assignedcontrolled.distanceto.[$placingSector, $standPosition]]" filter="error" />
             <set_value name="$requeue" exact="true" />
             <resume label="positionDone" />
           </do_if>
@@ -684,16 +693,12 @@
         <resume label="exactPositioning" />
       </do_if>
 
+      <!-- no wait for a full stop: the item is warped onto its point, which drops the speed it took from the ship -->
       <label name="stopMoving" />
       <stop_moving object="this.assignedcontrolled" />
-      <wait exact="1s" />
-      <do_if value="this.assignedcontrolled.speed gt 0">
-        <resume label="stopMoving" />
-      </do_if>
       <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $placingPosition] gt $distanceThreshold">
         <resume label="moveToTarget" />
       </do_if>
-      <wait exact="3s" />
 
       <!-- a new config while in flight takes the position away -->
       <include_interrupt_actions ref="bindState" />
@@ -708,12 +713,11 @@
         </do_if>
         <do_else>
           <launch_lasertower name="$deployedObj" object="this.assignedcontrolled" macro="$deployableMacro" />
-          <do_if value="@$deployedObj.exists">
-            <create_order object="$deployedObj" id="'Lasertower'" default="true" />
-          </do_if>
         </do_else>
       </do_if>
       <do_if value="@$deployedObj.exists">
+        <!-- it settles onto its point in md SmartMinelayer.SettleItem while this ship flies on -->
+        <signal_objects object="player.galaxy" param="'SmartMinelayer.Settle'" param2="$deployedObj" param3="table[$ship = this.assignedcontrolled, $sector = $placingSector, $point = $placingPosition, $posIdx = $posIdx, $launchSpeed = $deployedObj.speed, $start = player.age, $mine = $deployableMacro.isclass.mine]" />
         <add_to_group groupname="$deployedItems" object="$deployedObj" />
         <set_value name="$objectsToPositions.{'$%s'.[$deployedObj.idcode]}" exact="$posIdx" />
         <!-- its kills give this ship's pilot and crew experience (md SmartMinelayer.KillExperience) -->

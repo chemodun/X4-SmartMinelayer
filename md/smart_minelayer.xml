@@ -250,5 +250,53 @@
         </cue>
       </cues>
     </cue>
+
+    <!-- param2 = mine or laser tower just launched, param3 = table from order.smart.minelayer.
+         A warp restarts a mine's slide from rest: warp it onto its point, measure the slide, warp it one slide short. A tower undocks first and stays where it is warped. -->
+    <cue name="SettleItem" instantiate="true" namespace="this">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'SmartMinelayer.Settle'" />
+      </conditions>
+      <actions>
+        <set_value name="$item" exact="event.param2" />
+        <set_value name="$data" exact="event.param3" />
+        <do_if value="$data.$mine">
+          <warp object="$item" sector="$data.$sector">
+            <position value="$data.$point" />
+          </warp>
+        </do_if>
+      </actions>
+      <cues>
+        <cue name="SettleItemDone" checkinterval="500ms">
+          <conditions>
+            <check_any>
+              <check_value value="not $item.exists or player.age ge $data.$start + 20s" />
+              <check_value value="player.age ge $data.$start + 0.5s and $item.speed == 0 and ($data.$mine or not @$item.dock)" />
+            </check_any>
+          </conditions>
+          <actions>
+            <include_actions ref="ReadDebugChances" />
+            <do_if value="$item.exists and $data.$mine">
+              <create_position name="$stop" space="$data.$sector" object="$item" />
+              <set_value name="$slide" exact="position.[$stop.x - $data.$point.x, $stop.y - $data.$point.y, $stop.z - $data.$point.z]" />
+              <debug_text text="'SmartMinelayer: %s launched %s at %s m/s, warped onto position %s, stopped after %ss, slide %s, moved to slide onto it'.[@$data.$ship.debugname, $item.debugname, $data.$launchSpeed, $data.$posIdx, player.age - $data.$start, $slide]" chance="$traceChance" />
+              <warp object="$item" sector="$data.$sector">
+                <position value="position.[$data.$point.x - $slide.x, $data.$point.y - $slide.y, $data.$point.z - $slide.z]" />
+              </warp>
+              <remove_value name="$slide" />
+              <remove_value name="$stop" />
+            </do_if>
+            <do_elseif value="$item.exists">
+              <debug_text text="'SmartMinelayer: %s launched %s, undocked %s and stopped after %ss %s from position %s, moved onto it'.[@$data.$ship.debugname, $item.debugname, not @$item.dock, player.age - $data.$start, $item.distanceto.[$data.$sector, $data.$point], $data.$posIdx]" chance="$traceChance" />
+              <warp object="$item" sector="$data.$sector">
+                <position value="$data.$point" />
+              </warp>
+              <create_order object="$item" id="'Lasertower'" default="true" />
+            </do_elseif>
+            <include_actions ref="ClearDebugChances" />
+          </actions>
+        </cue>
+      </cues>
+    </cue>
   </cues>
 </mdscript>

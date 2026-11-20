@@ -439,9 +439,12 @@ function sm.getDeployableWareOptions(cfg, shipId64, shipMacro, shipClass, equipm
       local wareName, macro = GetWareData(wareId, "name", "component")
       if macro and wareName and (shipId64 == 0 or C.IsDeployableMacroCompatible(shipId64, shipMacro, macro)) then
         local opt = wareOption(wareId, macro, wareName, kind)
-        -- one launch must be one mine; an unknown package size counts as a package
+        -- one launch must be one mine (an unknown package size counts as a package);
+        -- any mine but a friend/foe one can hit its own minelayer while it is placed
         if kind == KIND_MINE and opt.package ~= 1 then
           sm.Debug("mine %s left out: package size %s", wareId, tostring(opt.package))
+        elseif kind == KIND_MINE and not (opt.mine and opt.mine.isfriendfoe) then
+          sm.Debug("mine %s left out: not friend/foe", wareId)
         else
           result[#result + 1] = opt
         end
@@ -476,11 +479,11 @@ function sm.getDeployableWareOptions(cfg, shipId64, shipMacro, shipClass, equipm
   cfg.allWareOptions = result
 end
 
--- the dropdown's items: the chosen kind; with low attention on, friend/foe mines only
+-- the dropdown's items: the chosen kind
 function sm.filterWareOptions(cfg)
   local list, keep = {}, nil
   for _, opt in ipairs(cfg.allWareOptions or {}) do
-    if opt.kind == cfg.kind and (opt.kind ~= KIND_MINE or not cfg.lowAttention or (opt.mine and opt.mine.isfriendfoe)) then
+    if opt.kind == cfg.kind then
       list[#list + 1] = opt
       if opt.id == cfg.ware then keep = opt end
     end
@@ -534,21 +537,14 @@ function sm.newConfigState(request)
   local shipMacro = (ship ~= 0) and (GetComponentData(ship, "macro") or "") or ""
   local shipClass = (ship ~= 0) and ffi.string(C.GetComponentClass(ship)) or ""
   sm.getDeployableWareOptions(cfg, ship, shipMacro, shipClass, req.equipmentStations)
-  -- per order, on in a new window; an order's existing ware fixes the kind
-  local lowAttention = GetNPCBlackboard(handle, config.lowAttentionVar)
-  cfg.lowAttention = (lowAttention == nil) or lowAttention == 1 or lowAttention == true
-  cfg.canLowAttention = true
+  -- an order's existing ware fixes the kind
   cfg.kind = KIND_TOWER
   for _, opt in ipairs(cfg.allWareOptions) do
     if opt.kind == KIND_MINE then cfg.kind = KIND_MINE; break end
   end
   if cfg.existingDeployableMacro then
-    local opt = cfg.allWareOptions[1]
-    cfg.ware = opt.id
-    cfg.canLowAttention = opt.kind == KIND_MINE and opt.mine ~= nil and opt.mine.isfriendfoe == true
-    if not cfg.canLowAttention then cfg.lowAttention = false end
+    cfg.ware = cfg.allWareOptions[1].id
   end
-  cfg.originalLowAttention = cfg.lowAttention
   sm.filterWareOptions(cfg)
 
   local matchIdx
@@ -701,7 +697,7 @@ function sm.onConfigOK()
   SetNPCBlackboard(request.handle, config.restockNpcVar, cfg.restockNpc and 1 or 0)
   local opt = (cfg.kind == KIND_MINE) and sm.selectedWareOption(cfg) or {}
   local mine = opt.mine
-  SetNPCBlackboard(request.handle, config.lowAttentionVar, (mine and cfg.lowAttention) and 1 or 0)
+  SetNPCBlackboard(request.handle, config.lowAttentionVar, mine and 1 or 0)
   -- the scanner's damage and reach for this mine
   SetNPCBlackboard(request.handle, config.mineStatsVar, mine and {
     tracking = mine.istracking and 1 or 0, range = mine.proximityrange or 0, follow = opt.follow,
@@ -724,7 +720,6 @@ function sm.onConfigReset()
   if not (cfg and cfg.originalValues) then return end
   for _, field in ipairs(SLOT_FIELDS) do cfg[field] = cfg.originalValues[field] end
   cfg.restockNpc = cfg.originalRestockNpc
-  cfg.lowAttention = cfg.originalLowAttention
   sm.filterWareOptions(cfg)
   cfg.activeTab = cfg.editingTabIndex
   sm.showConfigWindow()
@@ -935,17 +930,6 @@ function sm.showConfigWindow()
     cfg.kind = tonumber(id) or KIND_MINE
     sm.filterWareOptions(cfg)
     sm.showConfigWindow()
-  end
-  if cfg.kind == KIND_MINE then
-    -- the whole order's setting, shown on every tab
-    r = t:addRow(true, { fixed = true })
-    r[1]:createText(ReadText(PAGE, 220), { halign = "left", mouseOverText = ReadText(PAGE, 221) })
-    r[2]:createCheckBox(cfg.lowAttention, { active = isEditingTab and cfg.canLowAttention, width = rowH, height = rowH, mouseOverText = ReadText(PAGE, 221) })
-    r[2].handlers.onClick = function(_, checked)
-      cfg.lowAttention = checked
-      sm.filterWareOptions(cfg)
-      sm.showConfigWindow()
-    end
   end
   local wareOptions = cfg.deployableWareOptions or {}
   local wareMacroByWare = {}
