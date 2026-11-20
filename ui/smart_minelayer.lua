@@ -52,6 +52,7 @@ local config = {
   squareSides        = { 3, 5, 7, 10, 12 },
   hexagonItems       = { 9, 18, 27, 36, 45 },
   spherePoints       = { 26, 62, 122, 242, 482 },
+  logoItems          = { 60, 90, 120, 150, 180 },
   defaultMine        = "weapon_gen_mine_03",
   defaultTower       = "ship_gen_xs_lasertower_01_a",
   defaults           = {
@@ -200,36 +201,57 @@ end
 
 -- unit outline, scaled by the layer distance
 local LOGO_X = {
-  { 0.516352825, 0.188260654 }, { 0.159563925, -0.148662042 }, { 0.496531219, -0.683845391 },
+  { 0.516287193, 0.188186137 }, { 0.159563925, -0.148662042 }, { 0.496531219, -0.683845391 },
   { -0.018830525, -0.683845391 }, { -0.167492567, -0.46580773 }, { -0.405351833, -0.683845391 },
   { -0.960356789, -0.683845391 }, { -0.385530228, -0.128840436 }, { -0.742319128, 0.436075322 },
   { -0.217046581, 0.436075322 }, { -0.058473736, 0.186323092 }, { 0.219028741, 0.436075322 },
-  { 0.417244797, 0.436075322 },
+  { 0.424893643, 0.435001800 },
 }
 local LOGO_CIRCLE = { 0.699702676, 0.396432111, 0.277502478 }
+-- the stem is split at the crossbar so the junction is one shared point
 local LOGO_FOUR = {
-  { 0.783944500, 0.436075322, 0.783944500, 0.272547076 },
-  { 0.783944500, 0.376610505, 0.555996036, 0.376610505 },
-  { 0.555996036, 0.376610505, 0.749256690, 0.559960357 },
+  { 0.749256690, 0.559960357, 0.555996036, 0.376610505 },
+  { 0.555996036, 0.376610505, 0.783944500, 0.376610505 },
+  { 0.783944500, 0.436075322, 0.783944500, 0.376610505 },
+  { 0.783944500, 0.376610505, 0.783944500, 0.272547076 },
 }
 
-local function logo(out, transform, scale, pointsPerUnit)
+-- the X's open ends sit on the ring at these angles; the ring is two arcs between them, ends owned by the X
+local LOGO_ARC_START, LOGO_ARC_INNER = 3.002152597, 0.988151328
+local LOGO_LENGTH
+do
+  LOGO_LENGTH = config.twoPi * LOGO_CIRCLE[3]
+  for i = 1, #LOGO_X - 1 do
+    LOGO_LENGTH = LOGO_LENGTH + math.sqrt((LOGO_X[i + 1][1] - LOGO_X[i][1]) ^ 2 + (LOGO_X[i + 1][2] - LOGO_X[i][2]) ^ 2)
+  end
+  for _, s in ipairs(LOGO_FOUR) do
+    LOGO_LENGTH = LOGO_LENGTH + math.sqrt((s[3] - s[1]) ^ 2 + (s[4] - s[2]) ^ 2)
+  end
+end
+
+-- about `items` points evenly spaced along the outline
+local function logo(out, transform, scale, items)
+  local spacing = LOGO_LENGTH / items
   local function line(x1, y1, x2, y2)
-    local steps = math.max(1, math.floor(math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) * pointsPerUnit + 0.5))
+    local steps = math.max(1, math.floor(math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) / spacing + 0.5))
     for i = 0, steps do
       local t = i / steps
       out[#out + 1] = transform((x1 + (x2 - x1) * t) * scale, (y1 + (y2 - y1) * t) * scale)
     end
   end
+  local lx, ly, lr = LOGO_CIRCLE[1], LOGO_CIRCLE[2], LOGO_CIRCLE[3]
+  local function arc(start, span)
+    local steps = math.max(1, math.floor(span * lr / spacing + 0.5))
+    for i = 1, steps - 1 do
+      local angle = start + span * i / steps
+      out[#out + 1] = transform((lx + lr * math.cos(angle)) * scale, (ly + lr * math.sin(angle)) * scale)
+    end
+  end
   for i = 1, #LOGO_X - 1 do
     line(LOGO_X[i][1], LOGO_X[i][2], LOGO_X[i + 1][1], LOGO_X[i + 1][2])
   end
-  local lx, ly, lr = LOGO_CIRCLE[1], LOGO_CIRCLE[2], LOGO_CIRCLE[3]
-  local steps = math.max(3, math.floor(config.twoPi * lr * pointsPerUnit + 0.5))
-  for i = 0, steps - 1 do
-    local angle = i / steps * config.twoPi
-    out[#out + 1] = transform((lx + lr * math.cos(angle)) * scale, (ly + lr * math.sin(angle)) * scale)
-  end
+  arc(LOGO_ARC_START, LOGO_ARC_INNER)
+  arc(LOGO_ARC_START + LOGO_ARC_INNER, config.twoPi - LOGO_ARC_INNER)
   for _, s in ipairs(LOGO_FOUR) do
     line(s[1], s[2], s[3], s[4])
   end
@@ -317,7 +339,6 @@ function sm.computePositions(cfg, sorted)
   local normal = planeNormal(cfg.planeOrientation, w)
   local transform2 = planeTransform(cx, cy, cz, cfg.planeOrientation, u, v)
   local transform3 = spaceTransform(cx, cy, cz, u, v, w)
-  local pointsPerUnit = config.circleItems[density] / config.twoPi
 
   local positions = {}
   for layer = 0, cfg.concentricShapesCount do
@@ -334,7 +355,7 @@ function sm.computePositions(cfg, sorted)
     elseif shape == 5 then
       cube(base, transform3, config.squareSides[density], dist, fill and layer == 0)
     else
-      logo(base, transform2, dist, pointsPerUnit)
+      logo(base, transform2, dist, config.logoItems[density])
     end
     for _, plane in ipairs(planeOrder) do
       local d = (plane - (planes - 1) / 2) * cfg.parallelLayersSpacing

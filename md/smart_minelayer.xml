@@ -188,23 +188,37 @@
             <include_actions ref="ReadDebugChances" />
             <set_value name="$ship" exact="$owners.{event.param}" />
             <set_value name="$victim" exact="event.param2" />
-            <do_if value="@$ship.isoperational and $ship.isplayerowned and @$ship.pilot.exists">
-              <!-- hard when the victim outweighs the ship; the fight takes no time, so the hard factor is vanilla's cap -->
-              <set_value name="$difficulty" exact="(@$victim.dps.all / [$ship.dps.all, 1].max) + ($victim.maxhull / [$ship.hull, 1].max * 0.5)" />
-              <set_value name="$category" exact="if $difficulty gt 2 then 'ship_kill_hard' else 'ship_kill_easy'" />
-              <apply_experience entity="$ship.pilot" experience="$category" factor="1.0" />
-              <apply_experience object="$ship" role="entityrole.service" experience="$category" factor="1.0" />
-              <do_if value="$category == 'ship_kill_hard'">
-                <apply_experience entity="$ship.pilot" experience="'ship_kill_easy'" factor="1.0" />
-                <apply_experience object="$ship" role="entityrole.service" experience="'ship_kill_easy'" factor="1.0" />
-              </do_if>
-              <debug_text text="'SmartMinelayer: %s killed %s (method %s), %s gains %s (difficulty %s)'.[event.param.debugname, $victim.debugname, event.param3, $ship.debugname, $category, $difficulty]" chance="$debugChance" />
-              <remove_value name="$difficulty" />
-              <remove_value name="$category" />
+            <!-- the wing shares the field, so the deployer, its Smart Minelayer leader and the leader's Assist wingmen all gain -->
+            <set_value name="$group" exact="table[{$ship} = true]" />
+            <set_value name="$leader" exact="if @$ship.assignment == assignment.assist then @$ship.commander else $ship" />
+            <do_if value="@$leader.isoperational and @$leader.defaultorder.id == 'SmartMinelayer'">
+              <set_value name="$group.{$leader}" exact="true" />
+              <do_for_each name="$member" in="$leader.subordinates.{assignment.assist}">
+                <set_value name="$group.{$member}" exact="true" />
+              </do_for_each>
             </do_if>
-            <do_else>
-              <debug_text text="'SmartMinelayer: %s killed %s, no experience: minelayer %s gone, not owned by the player or without a pilot'.[event.param.debugname, $victim.debugname, @$ship.debugname]" chance="$debugChance" />
-            </do_else>
+            <do_for_each name="$member" in="$group.keys.list">
+              <do_if value="@$member.isoperational and $member.isplayerowned and @$member.pilot.exists">
+                <!-- hard when the victim outweighs the ship; the fight takes no time, so the hard factor is vanilla's cap -->
+                <set_value name="$difficulty" exact="(@$victim.dps.all / [$member.dps.all, 1].max) + ($victim.maxhull / [$member.hull, 1].max * 0.5)" />
+                <set_value name="$category" exact="if $difficulty gt 2 then 'ship_kill_hard' else 'ship_kill_easy'" />
+                <apply_experience entity="$member.pilot" experience="$category" factor="1.0" />
+                <apply_experience object="$member" role="entityrole.service" experience="$category" factor="1.0" />
+                <do_if value="$category == 'ship_kill_hard'">
+                  <apply_experience entity="$member.pilot" experience="'ship_kill_easy'" factor="1.0" />
+                  <apply_experience object="$member" role="entityrole.service" experience="'ship_kill_easy'" factor="1.0" />
+                </do_if>
+                <debug_text text="'SmartMinelayer: %s killed %s (method %s), %s gains %s (difficulty %s)'.[event.param.debugname, $victim.debugname, event.param3, $member.debugname, $category, $difficulty]" chance="$debugChance" />
+                <remove_value name="$difficulty" />
+                <remove_value name="$category" />
+              </do_if>
+              <do_else>
+                <debug_text text="'SmartMinelayer: %s killed %s, no experience for %s: gone, not owned by the player or without a pilot'.[event.param.debugname, $victim.debugname, @$member.debugname]" chance="$debugChance" />
+              </do_else>
+            </do_for_each>
+            <remove_value name="$member" />
+            <remove_value name="$leader" />
+            <remove_value name="$group" />
             <remove_value name="$ship" />
             <remove_value name="$victim" />
             <include_actions ref="ClearDebugChances" />

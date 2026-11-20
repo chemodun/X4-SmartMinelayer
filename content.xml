@@ -8,7 +8,7 @@
   save="false"
   sync="false"
   lastupdate=""
-  description="[h1]Smart Minelayer[/h1]&#13;&#10;&#13;&#10;A ship order that deploys mines or laser towers in configurable geometric patterns (circle, square, hexagon, sphere, cube) around a point or object in space, then monitors and automatically replaces destroyed items.&#13;&#10;&#13;&#10;[h2]Features[/h2]&#13;&#10;[list]&#13;&#10;[*] Deploy in circle, square, hexagon, sphere or cube patterns&#13;&#10;[*] Configurable spacing, distance, density and concentric layers&#13;&#10;[*] Works with any mine or laser tower type in the ship's cargo&#13;&#10;[*] Monitors deployed items and restocks when losses exceed a threshold&#13;&#10;[*] No cheating - the ship physically travels to each deploy position&#13;&#10;[/list]">
+  description="Deploy mines or laser towers in geometric patterns and auto-replace destroyed items.">
   <!-- English -->
   <text language="44"
     name="Smart Minelayer"

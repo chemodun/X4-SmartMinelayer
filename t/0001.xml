@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Smart Minelayer</t>
+            <t id="2">Deploy a pattern of mines or laser towers and automatically replace destroyed items.</t>
+
+            <!-- order params -->
+            <t id="10">Target Position</t>
+            <t id="20">Target Object \(station or gate\)</t>
+            <t id="30">Add Position</t>
+            <t id="31">Reset</t>
+
+            <!-- config window sections -->
+            <t id="100">Target</t>
+            <t id="200">Deployable</t>
+            <t id="300">Shape</t>
+            <t id="400">Concentric Shapes</t>
+            <t id="500">Parallel Layers</t>
+            <t id="600">Offset</t>
+            <t id="700">Maintenance</t>
+
+            <!-- config window rows -->
+            <t id="110">Target Sector</t>
+            <t id="210">Item</t>
+            <t id="220">Active While You Are Away</t>
+            <t id="221">On: the mines also detonate on enemies while you are far away, where the game leaves them inert; only friend/foe mines can be chosen. Off: any mine can be chosen, and it acts only while you are nearby.</t>
+            <t id="310">Shape</t>
+            <t id="320">Radius</t>
+            <t id="330">Density</t>
+            <t id="340">Plane Orientation</t>
+            <t id="350">Items in Slot</t>
+            <t id="410">Count</t>
+            <t id="420">Spacing</t>
+            <t id="510">Count</t>
+            <t id="520">Spacing</t>
+            <t id="610">Direction</t>
+            <t id="620">Distance</t>
+            <t id="710">Replacement Threshold \(%\)</t>
+            <t id="720">Restock at Other Factions' Stations</t>
+            <t id="721">Off: the ship restocks only at your own stations and supply ships, free of charge. On: it may also buy at other factions' stations, at their price.</t>
+
+            <!-- shapes -->
+            <t id="311">Circle</t>
+            <t id="312">Square</t>
+            <t id="313">Hexagon</t>
+            <t id="314">Sphere</t>
+            <t id="315">Cube</t>
+            <t id="316">X4 Logo</t>
+
+            <!-- densities -->
+            <t id="331">Very Low</t>
+            <t id="332">Low</t>
+            <t id="333">Medium</t>
+            <t id="334">High</t>
+            <t id="335">Extra High</t>
+
+            <!-- plane orientations -->
+            <t id="341">XZ Ecliptic</t>
+            <t id="342">X-Y Plane</t>
+            <t id="343">Z-Y Plane</t>
+
+            <!-- offset directions -->
+            <t id="611">None \(Centered\)</t>
+            <t id="612">Front</t>
+            <t id="613">Back</t>
+            <t id="614">Right</t>
+            <t id="615">Left</t>
+            <t id="616">Up</t>
+            <t id="617">Down</t>
+
+            <!-- messages -->
+            <t id="10007">No item of this type is available for this ship.</t>
+            <t id="10008">Cannot reach the target sector: all routes are blocked by the military blacklist.</t>
+            <t id="10009">Deployment cancelled by user.</t>
+            <t id="10014">No deployment positions configured. Turn on 'Add Position' to set them up.</t>
+            <t id="10015">Cannot restock after 5 attempts: no own station or supply ship, nor an allowed station of another faction, could provide it, or there were not enough credits.</t>
+            <t id="10016">Configure Smart Minelayer</t>
+            <t id="10017">All %s slots are in use. Pick the target of an existing slot to change it.</t>
+            <t id="10019">Too many items: %s, at most %s per slot.</t>
+
+            <!-- options menu -->
+            <t id="90900">Debug</t>
+            <t id="90910">Debug Level</t>
+            <t id="90911">None</t>
+            <t id="90912">Debug</t>
+            <t id="90913">Trace</t>
+        </page>
+    </add>
+</diff>

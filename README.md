@@ -10,7 +10,7 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 - **Active While You Are Away**: with this option, friend/foe mines detonate on enemy ships while you are far from the field, where the game otherwise leaves them inert. A mine reaches as far as its trigger range, a tracking mine as far as it follows a target.
 - **Automatic refill**: when a slot's losses reach its replacement threshold, the ship flies out and lays the missing items again.
 - **Own restock**: when the ship runs out of items, it buys them on its own. It looks for your own supply ships and stations first, free of charge, near its sector before farther away. With **Restock at Other Factions' Stations** it may also buy at other factions' stations, at their price and only as many as you can pay for.
-- **Experience for kills**: when the ship's mines or laser towers destroy an enemy ship, its pilot and service crew gain experience, as they would from the game's attack order.
+- **Experience for kills**: when the mines or laser towers of the ship or its wingmen destroy an enemy ship, the pilot and service crew of the ship and of every wingman gain experience, as they would from the game's attack order.
 - **Wingmen**: ships assigned to the minelayer with the **Assist** order lay, refill and restock the same fields together with it.
 - **Waiting**: between refills the ship docks at the nearest station in the field's sector that lets it, or waits in open space a few kilometres off the field's edge.
 
@@ -56,19 +56,29 @@ Or you can do it via the Nexus Mods - [Smart Minelayer](https://www.nexusmods.co
 
 Select a ship that carries mines or laser towers, open its **Behaviour** on the map and choose **Smart Minelayer**. Set **Target Position** to a point in space, or **Target Object** to a station or gate, turn on **Add Position** and confirm. The configuration window opens on the map.
 
+![Behaviour: Smart Minelayer](docs/images/behaviour.png)
+
 In the **Deployable** section pick the type, **Mines** or **Laser Towers**, and the item. With **Mines**, **Active While You Are Away** is on by default and offers only friend/foe mines; turn it off to choose any mine.
 
 In **Shape**, **Concentric Shapes**, **Parallel Layers** and **Offset** design the field. The window shows how many items the slot needs.
 
 In **Maintenance** set the **Replacement Threshold**: the share of a slot's items that must be lost before the ship refills it, 0 for at once. **Restock at Other Factions' Stations** lets the ship buy at stations that are not yours; a new order starts with your last choice.
 
+![Configuration window](docs/images/config_window.png)
+
 Confirm, and the ship flies to the field and lays it. For another field, set a new target and turn on **Add Position** again; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change.
 
-To look at a ship's slots, choose **Configure Smart Minelayer** in its context menu.
+![An X4 Logo of 120 Friend/Foe Mines on the map](docs/images/map_x4_logo.png)
+
+To look at a ship's slots, choose **Configure Smart Minelayer** in its context menu; with UI Extensions installed it is under **Smart Minelayer** in **Custom Actions**.
+
+![Context menu: Configure Smart Minelayer](docs/images/context_menu.png)
 
 ## Options
 
 An options page is available via the `Extension Options` menu: it sets the debug level of the extension's log.
+
+![Options](docs/images/options.png)
 
 ## Credits
 
