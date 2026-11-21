@@ -1,5 +1,6 @@
--- Smart Minelayer: the slot config window on the map. It computes the deployment positions of a slot and hands
--- them to the order on the pilot's blackboard; design notes in claude/mod-smart_minelayer.md.
+-- Smart Minelayer: the slot config window on the map. It shows the slots the request copies, computes the
+-- positions of one and hands the order one op (add, edit, delete) on the pilot's blackboard; design notes in
+-- claude/mod-smart_minelayer.md.
 
 ---@diagnostic disable-next-line: unresolved-require
 local ffi = require("ffi")
@@ -14,8 +15,20 @@ ffi.cdef [[
     int amount;
   } EquipmentWareInfo;
   typedef struct { int major; int minor; } GameVersion;
+  typedef uint64_t AIOrderID;
+  typedef struct {
+    uint32_t id;
+    AIOrderID orderid;
+    const char* orderdef;
+    const char* message;
+    double timestamp;
+    bool wasdefaultorder;
+    bool wasinloop;
+  } OrderFailure;
   uint32_t GetAvailableEquipment(EquipmentWareInfo* result, uint32_t resultlen, UniverseID containerid, const char* classid);
   const char* GetComponentClass(UniverseID componentid);
+  bool GetDefaultOrderFailure(OrderFailure* result, UniverseID controllableid);
+  void SetFocusMapComponent(UniverseID holomapid, UniverseID componentid, bool resetplayerpan);
   GameVersion GetGameVersion();
   uint32_t GetNumAvailableEquipment(UniverseID containerid, const char* classid);
   uint32_t GetNumWares(const char* tags, bool research, const char* licenceownerid, const char* exclusiontags);
@@ -23,6 +36,7 @@ ffi.cdef [[
   UniverseID GetPlayerObjectID(void);
   uint32_t GetWares(const char** result, uint32_t resultlen, const char* tags, bool research, const char* licenceownerid, const char* exclusiontags);
   bool IsDeployableMacroCompatible(UniverseID containerid, const char* macroname, const char* deployablemacroname);
+  void RemoveDefaultOrderFailure(UniverseID controllableid);
 ]]
 
 local PAGE = 1972092417
@@ -33,15 +47,16 @@ local config = {
   isV9               = C.GetGameVersion().major >= 9,
   configBlackboard   = "$SmartMinelayerConfig",
   requestVar         = "$SmartMinelayerConfigRequestData",
-  positionsVar       = "$SmartMinelayerPositionsList",
+  -- the order applies it to the common slot list, which Lua never writes
+  opVar              = "$SmartMinelayerConfigOp",
   deployableMacroVar = "$SmartMinelayerDeployableMacro",
   deployableInputsVar = "$SmartMinelayerDeployableInputs",
-  slotsVar           = "$SmartMinelayerSlotList",
-  slotStatsVar       = "$SmartMinelayerSlotStats",
   configPositionVar  = "$SmartMinelayerConfigPosition",
   restockNpcVar      = "$SmartMinelayerRestockNpc",
   lowAttentionVar    = "$SmartMinelayerLowAttention",
   mineStatsVar       = "$SmartMinelayerMineStats",
+  -- px between the ship and the window corner, before UI scaling
+  shipGap            = 16,
   -- one tab icon per slot
   maxSlots           = 9,
   maxItemsPerSlot    = 1000,
@@ -391,18 +406,9 @@ local function samePositions(a, b)
   return true
 end
 
--- a saved slot's positions, cut from the flat list the order uses
 function sm.oldSlotPositions(cfg, index)
-  local stats = cfg.oldStats[index]
-  if type(stats) == "table" and stats.firstPosIdx and stats.size then
-    local out = {}
-    for i = stats.firstPosIdx, stats.firstPosIdx + stats.size - 1 do
-      out[#out + 1] = cfg.oldPositions[i]
-    end
-    return out
-  end
-  local slot = cfg.slotList[index]
-  return (type(slot) == "table" and type(slot.positions) == "table") and slot.positions or {}
+  local list = cfg.slotPositions[index]
+  return (type(list) == "table") and list or {}
 end
 
 -- a mine carries its library entry (damage, friend/foe, tracking, trigger range), package size and follow range
@@ -516,12 +522,17 @@ function sm.newConfigState(request)
   cfg.targetPosition       = req.targetPosition
   cfg.reviewOnly           = req.reviewOnly
 
-  local slotList = GetNPCBlackboard(handle, config.slotsVar)
-  cfg.slotList = (type(slotList) == "table") and slotList or {}
-  local oldStats = GetNPCBlackboard(handle, config.slotStatsVar)
-  cfg.oldStats = (type(oldStats) == "table") and oldStats or {}
-  local oldPositions = GetNPCBlackboard(handle, config.positionsVar)
-  cfg.oldPositions = (type(oldPositions) == "table") and oldPositions or {}
+  -- the order's copy of the ship's slots in tab order: uid, config, positions
+  ---@type table<string, any>[]
+  local slotList = {}
+  local slotIds, slotPositions = {}, {}
+  for _, slot in ipairs(type(req.slots) == "table" and req.slots or {}) do
+    if type(slot) == "table" and type(slot.config) == "table" and slot.uid then
+      local n = #slotList + 1
+      slotList[n], slotIds[n], slotPositions[n] = slot.config, tostring(slot.uid), slot.positions
+    end
+  end
+  cfg.slotList, cfg.slotIds, cfg.slotPositions = slotList, slotIds, slotPositions
   local existingMacro = GetNPCBlackboard(handle, config.deployableMacroVar)
   cfg.existingDeployableMacro = (type(existingMacro) == "string" and existingMacro ~= "") and existingMacro or nil
   -- per order; a new order starts with the value last confirmed in any window
@@ -560,7 +571,7 @@ function sm.newConfigState(request)
   end
 
   if matchIdx then
-    local slot = cfg.slotList[matchIdx]
+    local slot = cfg.slotList[matchIdx] ---@type any
     cfg.originalValues = {}
     for _, field in ipairs(SLOT_FIELDS) do
       cfg[field] = slot[field] or config.defaults[field]
@@ -617,12 +628,17 @@ function sm.openRequest(request)
     table.remove(sm.requests, 1)
     return
   end
+  local menu = sm.menu
+  local ship = ConvertIDTo64Bit(request.callbackObject) or 0
   if not request.cfg then
     request.cfg = sm.newConfigState(request)
-    local menu = sm.menu
     menu.selectedcomponents = {}
-    menu.addSelectedComponent(ConvertIDTo64Bit(request.callbackObject), true, true)
+    menu.addSelectedComponent(ship, true, true)
     menu.setSelectedMapComponents()
+  end
+  -- the ship goes to the map centre, the window beside it
+  if ship ~= 0 then
+    C.SetFocusMapComponent(menu.holomap, ship, true)
   end
   sm.showConfigWindow()
 end
@@ -682,29 +698,16 @@ function sm.onConfigOK()
   }
   for _, field in ipairs(SLOT_FIELDS) do slotEntry[field] = cfg[field] end
 
-  local slots, slotPositions = {}, {}
-  for i, slot in ipairs(cfg.slotList) do
-    slot.positions = nil
-    slots[i] = slot
-    slotPositions[i] = sm.oldSlotPositions(cfg, i)
+  local op = { op = "add", slot = slotEntry, positions = positions }
+  local edited = cfg.editingSlotIndex
+  if edited then
+    -- moved = 0 keeps the items already laid for this slot
+    local same = samePositions(sm.oldSlotPositions(cfg, edited), positions)
+    op.op, op.uid, op.moved = "edit", cfg.slotIds[edited], same and 0 or 1
   end
-  local edited = cfg.editingSlotIndex or (#slots + 1)
-  local oldEdited = slotPositions[edited]
-  slots[edited], slotPositions[edited] = slotEntry, positions
+  sm.Debug("%s slot %s of %s: %d positions, macro %s", op.op, tostring(op.uid or (#cfg.slotList + 1)), request.key, #positions, cfg.wareMacro)
 
-  local all, stats = {}, {}
-  for i, slot in ipairs(slots) do
-    local list = slotPositions[i] or {}
-    -- 1 = unchanged, so the order keeps the items already laid for this slot
-    local keep = (i ~= edited) or (oldEdited ~= nil and samePositions(oldEdited, list))
-    stats[i] = { firstPosIdx = #all + 1, size = #list, threshold = slot.threshold or config.defaults.threshold, sector = slot.sector, keep = keep and 1 or 0 }
-    for _, p in ipairs(list) do all[#all + 1] = p end
-  end
-  sm.Debug("slot %d of %s: %d positions, %d in all, macro %s", edited, request.key, #positions, #all, cfg.wareMacro)
-
-  SetNPCBlackboard(request.handle, config.slotsVar, slots)
-  SetNPCBlackboard(request.handle, config.slotStatsVar, stats)
-  SetNPCBlackboard(request.handle, config.positionsVar, all)
+  SetNPCBlackboard(request.handle, config.opVar, op)
   SetNPCBlackboard(request.handle, config.deployableMacroVar, cfg.wareMacro)
   -- the order's restock needs the build inputs, which script properties do not give for equipment
   local resources, runAmount = GetWareData(cfg.ware, "resources", "productionamount")
@@ -720,6 +723,13 @@ function sm.onConfigOK()
     tracking = mine.istracking and 1 or 0, range = mine.proximityrange or 0, follow = opt.follow,
     damage = mine.explosiondamage or 0, hull = mine.hullexplosiondamage or 0, shield = mine.shieldexplosiondamage or 0,
   } or nil)
+  -- a cancelled first slot left a failure record; no MD action removes one
+  local ship = ConvertIDTo64Bit(request.callbackObject) or 0
+  local failure = ffi.new("OrderFailure")
+  if ship ~= 0 and C.GetDefaultOrderFailure(failure, ship) and ffi.string(failure.orderdef) == "SmartMinelayer" then
+    C.RemoveDefaultOrderFailure(ship)
+    sm.Debug("default order failure of %s removed", request.key)
+  end
   sm.finishRequest()
   AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
 end
@@ -728,23 +738,9 @@ end
 function sm.onConfigDelete(deleted)
   local request = sm.requests[1]
   local cfg = request and request.cfg
-  if not (cfg and cfg.slotList[deleted] and #cfg.slotList > 1) then return end
-  local slots, all, stats = {}, {}, {}
-  for i, slot in ipairs(cfg.slotList) do
-    if i ~= deleted then
-      local list = sm.oldSlotPositions(cfg, i)
-      slot.positions = nil
-      slots[#slots + 1] = slot
-      -- from: the slot's index before the delete, so the order keeps its laid items
-      stats[#slots] = { firstPosIdx = #all + 1, size = #list, threshold = slot.threshold or config.defaults.threshold, sector = slot.sector, keep = 1, from = i }
-      for _, p in ipairs(list) do all[#all + 1] = p end
-    end
-  end
-  sm.Debug("slot %d of %s deleted: %d slots, %d positions left", deleted, request.key, #slots, #all)
-
-  SetNPCBlackboard(request.handle, config.slotsVar, slots)
-  SetNPCBlackboard(request.handle, config.slotStatsVar, stats)
-  SetNPCBlackboard(request.handle, config.positionsVar, all)
+  if not (cfg and cfg.slotIds[deleted]) then return end
+  sm.Debug("slot %d (%s) of %s deleted, %d slots left", deleted, cfg.slotIds[deleted], request.key, #cfg.slotList - 1)
+  SetNPCBlackboard(request.handle, config.opVar, { op = "delete", uid = cfg.slotIds[deleted] })
   sm.finishRequest()
   AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
 end
@@ -809,12 +805,15 @@ function sm.showConfigWindow()
   local frameW = menu.infoTableWidth
   local labelW = Helper.scaleX(200)
   local rowH = Helper.standardTextHeight
+  -- bottom-left corner next to the ship in the map centre, kept inside vanilla's panel area
+  local shipGap = Helper.scaleX(config.shipGap)
+  local minY = (menu.infoTable2OffsetY or menu.infoTableOffsetY) - Helper.standardContainerOffset
+  local frameX = math.min(Helper.viewWidth / 2 + shipGap, Helper.viewWidth - menu.infoTableOffsetX - frameW)
   sm.configFrame = Helper.createFrameHandle(menu, {
     layer                 = config.frameLayer,
     width                 = frameW,
-    -- vanilla's right panel slot, so the map centre with the field marker stays visible
-    x                     = Helper.viewWidth - menu.infoTableOffsetX - frameW,
-    y                     = (menu.infoTable2OffsetY or menu.infoTableOffsetY) - Helper.standardContainerOffset,
+    x                     = frameX,
+    y                     = minY,
     standardButtons       = {},
     autoFrameHeight       = true,
     closeOnUnhandledClick = false,
@@ -1047,7 +1046,7 @@ function sm.showConfigWindow()
   local canConfirm = isEditingTab and cfg.wareMacro ~= "" and itemCount > 0 and not tooMany
   btnRow[1]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = canConfirm }):setText(ReadText(1001, 2821), { halign = "center" })
   btnRow[1].handlers.onClick = sm.onConfigOK
-  if viewSlot and #slotList > 1 then
+  if viewSlot then
     -- a saved slot's tab: the box unlocks Delete
     local armed = cfg.deleteArmedTab == activeTab
     btnRow[5]:createCheckBox(armed, { width = Helper.standardButtonHeight, height = Helper.standardButtonHeight, mouseOverText = ReadText(PAGE, 32) })
@@ -1066,6 +1065,8 @@ function sm.showConfigWindow()
   btnRow[9].handlers.onClick = sm.onConfigCancel
   bt:addEmptyRow(Helper.borderSize)
 
+  local frameH = bt.properties.y + bt:getFullHeight() + Helper.borderSize
+  sm.configFrame.properties.y = math.max(minY, Helper.viewHeight / 2 - shipGap - frameH)
   sm.configFrame:display()
 end
 

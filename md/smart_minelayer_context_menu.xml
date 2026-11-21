@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mdscript name="SmartMinelayerContextMenu" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
-  <!-- "Configure Smart Minelayer" on a ship whose default order is Smart Minelayer, nothing else selected: opens its slots for review.
+  <!-- "Configure Smart Minelayer" on a ship whose default order is Smart Minelayer, nothing else selected: opens its slots for review, or without slots the first slot's window for the order's target.
        "Add Minelayer Position" for selected minelayers on a spot in space, a station or a gate: adds a slot there. -->
   <cues>
     <cue name="Main" version="3">
@@ -23,16 +23,24 @@
             </do_for_each>
             <remove_value name="$selShip" />
             <do_if value="$otherShips == 0">
+              <!-- slots to review, a window the order waits for, or a target for the first slot -->
+              <set_value name="$configPilot" exact="@event.param.$object.assignedaipilot" />
+              <set_value name="$configOrder" exact="event.param.$object.defaultorder" />
+              <set_value name="$configActive" exact="if @$configPilot.$SmartMinelayerSlotIds.count gt 0 or typeof @$configPilot.$SmartMinelayerConfigRequestData == datatype.table or @$configOrder.$targetObject.exists or @$configOrder.$targetPosition.{1}.exists then true else false" />
               <signal_cue_instantly
                 cue="md.Interact_Menu_API.Add_Action"
                 param="table[
-                  $id       = 'smart_minelayer_configure',
-                  $section  = 'main_orders',
-                  $icon     = 'order_smartminelayer',
-                  $text     = {1972092417, 10016},
-                  $active   = @event.param.$object.pilot.$SmartMinelayerSlotList.count gt 0,
-                  $callback = SML_Configure_Callback,
+                  $id        = 'smart_minelayer_configure',
+                  $section   = 'main_orders',
+                  $icon      = 'order_smartminelayer',
+                  $text      = {1972092417, 10016},
+                  $mouseover = if $configActive then '' else {1972092417, 10021},
+                  $active    = $configActive,
+                  $callback  = SML_Configure_Callback,
                 ]" />
+              <remove_value name="$configPilot" />
+              <remove_value name="$configOrder" />
+              <remove_value name="$configActive" />
             </do_if>
             <remove_value name="$otherShips" />
           </actions>
@@ -45,18 +53,47 @@
           <actions>
             <include_actions ref="md.SmartMinelayer.ReadDebugChances" />
             <set_value name="$configShip" exact="event.param.$object" />
-            <do_if value="@$configShip.defaultorder.id == 'SmartMinelayer' and @$configShip.pilot.$SmartMinelayerSlotList.count gt 0">
-              <!-- a request the order is waiting for is shown as it is, not replaced by a review -->
-              <do_if value="not @$configShip.pilot.$SmartMinelayerConfigRequestData or @$configShip.pilot.$SmartMinelayerConfigRequestData.$reviewOnly">
-                <set_value name="$configShip.pilot.$SmartMinelayerConfigRequestData" exact="table[
-                  $callbackObject = $configShip,
-                  $reviewOnly = true,
-                  $equipmentStations = []]" />
-              </do_if>
-              <raise_lua_event name="'SmartMinelayer.Configure'" param="$configShip.pilot" />
-              <debug_text text="'SmartMinelayer: context menu opened the config window for %s'.[$configShip.debugname]" chance="$debugChance" />
+            <!-- the order runs on the AI pilot, which keeps the blackboard while the player flies the ship -->
+            <set_value name="$configPilot" exact="@$configShip.assignedaipilot" />
+            <set_value name="$configRequest" exact="@$configPilot.$SmartMinelayerConfigRequestData" />
+            <do_if value="@$configShip.defaultorder.id != 'SmartMinelayer' or not @$configPilot.exists">
+              <debug_text text="'SmartMinelayer: context menu Configure for %s, which has no Smart Minelayer order'.[@$configShip.debugname]" filter="error" />
             </do_if>
+            <!-- a request the order is waiting for is shown as it is, not replaced by a review -->
+            <do_elseif value="typeof $configRequest == datatype.table and not @$configRequest.$reviewOnly">
+              <raise_lua_event name="'SmartMinelayer.Configure'" param="$configPilot" />
+              <debug_text text="'SmartMinelayer: context menu showed the pending config window of %s'.[$configShip.debugname]" chance="$debugChance" />
+            </do_elseif>
+            <!-- no slot yet: the order restarts and opens the first slot's window for its target -->
+            <do_elseif value="not @$configPilot.$SmartMinelayerSlotIds.count">
+              <do_if value="@$configShip.defaultorder.$targetObject.exists or @$configShip.defaultorder.$targetPosition.{1}.exists">
+                <edit_order_param order="$configShip.defaultorder" param="'targetAdd'" value="true" />
+                <debug_text text="'SmartMinelayer: context menu restarted the order of %s for its first slot'.[$configShip.debugname]" chance="$debugChance" />
+              </do_if>
+            </do_elseif>
+            <do_else>
+              <!-- the window's copy of the ship's slots in tab order, from the common list -->
+              <set_value name="$reviewSlots" exact="[]" />
+              <do_for_each name="$reviewUid" in="$configPilot.$SmartMinelayerSlotIds">
+                <set_value name="$reviewEntry" exact="@player.entity.$SmartMinelayer.$slots.{'$' + $reviewUid}" />
+                <do_if value="typeof $reviewEntry == datatype.table and $reviewEntry.$config?">
+                  <append_to_list name="$reviewSlots" exact="table[$uid = $reviewUid, $config = $reviewEntry.$config, $positions = $reviewEntry.$positions]" />
+                </do_if>
+              </do_for_each>
+              <set_value name="$configPilot.$SmartMinelayerConfigRequestData" exact="table[
+                $callbackObject = $configShip,
+                $reviewOnly = true,
+                $equipmentStations = [],
+                $slots = $reviewSlots]" />
+              <remove_value name="$reviewSlots" />
+              <remove_value name="$reviewUid" />
+              <remove_value name="$reviewEntry" />
+              <raise_lua_event name="'SmartMinelayer.Configure'" param="$configPilot" />
+              <debug_text text="'SmartMinelayer: context menu opened the config window for %s'.[$configShip.debugname]" chance="$debugChance" />
+            </do_else>
             <remove_value name="$configShip" />
+            <remove_value name="$configPilot" />
+            <remove_value name="$configRequest" />
             <include_actions ref="md.SmartMinelayer.ClearDebugChances" />
           </actions>
         </cue>

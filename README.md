@@ -66,7 +66,7 @@ In **Maintenance** set the **Replacement Threshold**: the share of a slot's item
 
 ![Configuration window](docs/images/config_window.png)
 
-Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose **Add Minelayer Position**; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its **Behaviour** adds no slot. With two or more slots, the tab of a saved slot shows **Delete** in place of **Reset**: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced.
+Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose **Add Minelayer Position**; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its **Behaviour** adds no slot. The tab of a saved slot shows **Delete** in place of **Reset**: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced. Deleting the last slot clears the order's target too; the ship stands by until **Add Minelayer Position** gives it a new one.
 
 A few fields on the map, one slot each:
 
@@ -78,13 +78,13 @@ A few fields on the map, one slot each:
 
 ![A filled cube inside a hollow one, 53 Friend/Foe Mines, seen from above](docs/images/map_cube.png)
 
-To look at a ship's slots, right-click it with no other object selected and choose **Configure Smart Minelayer** under **Orders**.
+To look at a ship's slots, right-click it with no other object selected and choose **Configure Smart Minelayer** under **Orders**. If the window of its first slot was closed without a slot, the same item opens it again.
 
 ![Context menu: Configure Smart Minelayer](docs/images/context_menu.png)
 
 ## Options
 
-An options page is available via the `Extension Options` menu: it sets the debug level of the extension's log.
+An options page is available via the `Extension Options` menu. **Keep Slots of a Destroyed Minelayer** sets how many game hours (0 to 24, default 4) the slots of a minelayer destroyed without wingmen are kept before they are dropped; its friend/foe mines keep working either way. **Debug Level** sets the detail of the extension's log.
 
 ![Options](docs/images/options.png)
 

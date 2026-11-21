@@ -74,15 +74,19 @@
             <!-- messages -->
             <t id="10007">No item of this type is available for this ship.</t>
             <t id="10008">Cannot reach the target sector: all routes are blocked by the military blacklist.</t>
-            <t id="10009">Deployment cancelled by user.</t>
+            <t id="10009">No slot configured: its window was closed. Right-click the ship and choose Configure Smart Minelayer to open it again.</t>
             <t id="10014">No deployment positions configured.</t>
             <t id="10015">Cannot restock after 5 attempts: no own station or supply ship, nor an allowed station of another faction, could provide it, or there were not enough credits.</t>
             <t id="10016">Configure Smart Minelayer</t>
             <t id="10017">All %s slots are in use. Pick the target of an existing slot to change it.</t>
             <t id="10019">Too many items: %s, at most %s per slot.</t>
             <t id="10020">Add Minelayer Position</t>
+            <t id="10021">No slots. Select the ship, right-click a spot in space, a station or a gate and choose Add Minelayer Position.</t>
 
             <!-- options menu -->
+            <t id="90800">Slots</t>
+            <t id="90810">Keep Slots of a Destroyed Minelayer</t>
+            <t id="90811">Game hours the slots of a minelayer destroyed without wingmen are kept before they are dropped; 0 drops them at once. Its friend/foe mines keep working either way.</t>
             <t id="90900">Debug</t>
             <t id="90910">Debug Level</t>
             <t id="90911">None</t>
