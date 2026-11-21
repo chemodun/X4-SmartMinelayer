@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="5">
+<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="6">
   <!-- Lays mines or laser towers on the positions of the ship's slots and refills each slot past its loss threshold.
        Slots live in the common list player.entity.$SmartMinelayer.$slots, keyed by '$' + uid; the pilot lists its uids in tab order. -->
   <order id="SmartMinelayer" name="{1972092417, 1}" description="{1972092417, 2}" category="combat" infinite="true" allowinloop="false">
@@ -67,6 +67,24 @@
         <remove_value name="$claimUid" />
         <remove_value name="$claimEntry" />
       </actions>
+      <!-- out $collectIdsLeft: this ship's deleted slots whose items are still collected; a uid without a collect entry goes -->
+      <actions name="pruneCollectIds">
+        <set_value name="$collectIdsLeft" exact="0" />
+        <do_if value="this.$SmartMinelayerCollectIds?">
+          <do_for_each name="$pruneUid" in="this.$SmartMinelayerCollectIds.clone">
+            <do_if value="@player.entity.$SmartMinelayer.$slots.{'$' + $pruneUid}.$collect">
+              <set_value name="$collectIdsLeft" operation="add" />
+            </do_if>
+            <do_else>
+              <remove_from_list name="this.$SmartMinelayerCollectIds" exact="$pruneUid" />
+            </do_else>
+          </do_for_each>
+          <remove_value name="$pruneUid" />
+          <do_if value="$collectIdsLeft == 0">
+            <remove_value name="this.$SmartMinelayerCollectIds" />
+          </do_if>
+        </do_if>
+      </actions>
       <!-- out $workUid: the first slot in tab order whose refill is on and that still misses an item -->
       <actions name="findWork">
         <set_value name="$workUid" exact="null" />
@@ -100,10 +118,10 @@
           <set_value name="$reqEntry.$refill" exact="true" />
         </do_if>
       </actions>
-      <!-- in $cutKey: a slot no list holds any more; its mines stay watched by the scanner until the last is gone -->
+      <!-- in $cutKey, $cutCollect: a slot no list holds any more; with $cutCollect its items wait for this ship to collect them, else its mines stay watched by the scanner until the last is gone -->
       <actions name="cutEntry">
         <set_value name="$cutEntry" exact="@player.entity.$SmartMinelayer.$slots.{$cutKey}" />
-        <do_if value="typeof $cutEntry == datatype.table and $cutEntry.$scan? and $cutEntry.$items.keys.count gt 0">
+        <do_if value="typeof $cutEntry == datatype.table and ($cutCollect or $cutEntry.$scan?) and $cutEntry.$items.keys.count gt 0">
           <remove_value name="$cutEntry.$config" />
           <remove_value name="$cutEntry.$positions" />
           <remove_value name="$cutEntry.$threshold" />
@@ -112,11 +130,79 @@
           <remove_value name="$cutEntry.$refill" />
           <remove_value name="$cutEntry.$lost" />
           <remove_value name="$cutEntry.$lostAt" />
+          <do_if value="$cutCollect">
+            <set_value name="$cutEntry.$collect" exact="true" />
+            <set_value name="$cutEntry.$inFlight" exact="table[]" />
+          </do_if>
         </do_if>
         <do_elseif value="typeof $cutEntry == datatype.table">
           <remove_value name="player.entity.$SmartMinelayer.$slots.{$cutKey}" />
         </do_elseif>
         <remove_value name="$cutEntry" />
+      </actions>
+      <!-- out $collectFound, $collectFoundUid: the nearest item in a collect entry of this ship's leader that no other ship works on -->
+      <actions name="findCollect">
+        <set_value name="$collectFound" exact="null" />
+        <set_value name="$collectFoundUid" exact="null" />
+        <set_value name="$collectLeader" exact="if @this.assignedcontrolled.commander then this.assignedcontrolled.commander else this.assignedcontrolled" />
+        <set_value name="$collectBest" exact="0m" />
+        <do_for_each name="$collectKey" valuename="$collectCand" in="$slots">
+          <do_if value="@$collectCand.$collect and $collectCand.$ship == $collectLeader">
+            <do_for_each name="$collectItem" in="$collectCand.$items.keys.list">
+              <do_if value="$collectItem.exists and $collectItem.macro == $deployableMacro and not ($collectSkip.{$collectItem}? and $collectSkip.{$collectItem} gt player.age)">
+                <set_value name="$collectClaimer" exact="@$collectCand.$inFlight.{$collectItem}" />
+                <do_if value="not $collectClaimer or $collectClaimer == this.assignedcontrolled or not @$collectClaimer.isoperational or (@$collectClaimer.defaultorder.id != 'SmartMinelayer' and @$collectClaimer.defaultorder.id != 'Assist')">
+                  <set_value name="$collectDist" exact="if $collectItem.sector == this.assignedcontrolled.sector then this.assignedcontrolled.distanceto.{$collectItem} else 1000000km" />
+                  <do_if value="not $collectFound or $collectDist lt $collectBest">
+                    <set_value name="$collectFound" exact="$collectItem" />
+                    <set_value name="$collectFoundUid" exact="$collectCand.$uid" />
+                    <set_value name="$collectBest" exact="$collectDist" />
+                  </do_if>
+                </do_if>
+              </do_if>
+            </do_for_each>
+          </do_if>
+        </do_for_each>
+        <remove_value name="$collectLeader" />
+        <remove_value name="$collectBest" />
+        <remove_value name="$collectKey" />
+        <remove_value name="$collectCand" />
+        <remove_value name="$collectItem" />
+        <remove_value name="$collectClaimer" />
+        <remove_value name="$collectDist" />
+      </actions>
+      <!-- in $collectUid, $collectObj: this ship's claim on an item it did not collect goes -->
+      <actions name="releaseCollect">
+        <set_value name="$releaseEntry" exact="@player.entity.$SmartMinelayer.$slots.{'$' + $collectUid}" />
+        <do_if value="typeof $releaseEntry == datatype.table and @$releaseEntry.$inFlight.{$collectObj} == this.assignedcontrolled">
+          <remove_value name="$releaseEntry.$inFlight.{$collectObj}" />
+        </do_if>
+        <remove_value name="$releaseEntry" />
+      </actions>
+      <!-- in $retLoc, $retWare, $retAmount, $retInputs, $retRunAmount; out $retLocOk, $retLocAmount (what it takes), $retUnitPrice -->
+      <actions name="checkReturnStation">
+        <set_value name="$retLocAmount" exact="$retAmount" />
+        <set_value name="$retUnitPrice" exact="0Cr" />
+        <set_value name="$retLocOk" exact="if @$retLoc.isoperational and $retLoc.isclass.station and $retLoc.dockingallowed.{this.assignedcontrolled} and @$retLoc.dock.{this.assignedcontrolled.docksize} and $retLoc.canbuildequipment.{[$retWare]} and this.assignedcontrolled.sector.gatedistance.{$retLoc.sector}.{blacklistgroup.military}.{this.assignedcontrolled} ge 0 then true else false" />
+        <!-- own: as many as its storage takes the build inputs of; other: as many as it can pay for -->
+        <do_if value="$retLocOk and $retLoc.isplayerowned">
+          <do_for_each name="$retInput" valuename="$retPerRun" in="$retInputs">
+            <do_if value="$retPerRun gt 0">
+              <set_value name="$retLocAmount" exact="[$retLocAmount, ($retLoc.cargo.{$retInput}.free * $retRunAmount) / $retPerRun].min" />
+            </do_if>
+          </do_for_each>
+        </do_if>
+        <do_elseif value="$retLocOk">
+          <set_value name="$retUnitPrice" exact="$retLoc.buildprice.{$retWare}" />
+          <do_if value="$retUnitPrice gt 0Cr">
+            <set_value name="$retLocAmount" exact="[$retLocAmount, ($retLoc.money / $retUnitPrice)i].min" />
+          </do_if>
+        </do_elseif>
+        <do_if value="$retLocAmount lt 1">
+          <set_value name="$retLocOk" exact="false" />
+        </do_if>
+        <remove_value name="$retInput" />
+        <remove_value name="$retPerRun" />
       </actions>
       <!-- out $requestSlots: the window's copy of this ship's slots in tab order -->
       <actions name="requestSlots">
@@ -155,8 +241,10 @@
         <remove_value name="$copyFrom" />
         <remove_value name="$copyTo" />
       </actions>
+      <!-- in $targetForClear, $keepSurplus (optional) -->
       <actions name="clearBlackboardVariables">
         <remove_value name="$targetForClear.$SmartMinelayerSlotIds" />
+        <remove_value name="$targetForClear.$SmartMinelayerCollectIds" />
         <remove_value name="$targetForClear.$SmartMinelayerConfigRequestData" />
         <remove_value name="$targetForClear.$SmartMinelayerConfigOp" />
         <remove_value name="$targetForClear.$SmartMinelayerDeployableMacro" />
@@ -167,6 +255,10 @@
         <remove_value name="$targetForClear.$SmartMinelayerConfigPosition" />
         <remove_value name="$targetForClear.$SmartMinelayerRestock" />
         <remove_value name="$targetForClear.$SmartMinelayerParkOffset" />
+        <do_if value="not @$keepSurplus">
+          <remove_value name="$targetForClear.$SmartMinelayerSurplus" />
+          <remove_value name="$targetForClear.$SmartMinelayerSurplusNext" />
+        </do_if>
       </actions>
       <!-- in $restockLoc, $restockWare, $restockAmount, $restockInputs, $restockRunAmount; out $restockLocOk, $restockLocWhy, $restockLocAmount (the affordable part, 0 = cannot pay one), $restockUnitPrice, $restockRuns -->
       <actions name="checkSupplier">
@@ -286,6 +378,8 @@
     <set_value name="$debugchance" exact="0" />
     <set_value name="$checkInterval" exact="30s" />
     <set_value name="$phase" exact="'init'" />
+    <!-- item -> time before which this run does not try to collect it again -->
+    <set_value name="$collectSkip" exact="table[]" />
     <do_if value="@$targetObject.exists">
       <set_value name="$targetSector" exact="$targetObject.sector" />
     </do_if>
@@ -296,8 +390,8 @@
       <set_value name="$targetSector" exact="this.assignedcontrolled.sector" />
     </do_else>
 
-    <!-- a wingman runs on its commander's slots and keeps the copy in case it is promoted -->
-    <do_if value="@this.assignedcontrolled.commander and @this.assignedcontrolled.commanderentity.$SmartMinelayerSlotIds.count gt 0">
+    <!-- a wingman runs on its commander's slots, deleted ones still collected included, and keeps the copy in case it is promoted -->
+    <do_if value="@this.assignedcontrolled.commander and (@this.assignedcontrolled.commanderentity.$SmartMinelayerSlotIds.count gt 0 or @this.assignedcontrolled.commanderentity.$SmartMinelayerCollectIds.count gt 0)">
       <set_value name="$copyFrom" exact="this.assignedcontrolled.commanderentity" />
       <set_value name="$copyTo" exact="this" />
       <include_interrupt_actions ref="copySettings" />
@@ -353,6 +447,12 @@
         <resume label="configReady" />
       </do_if>
       <do_if value="$slotIds.count == 0 and not @$targetObject.exists and not @$targetPosition.{1}.exists">
+        <!-- a deleted slot's items to collect, or collected items to return, come first -->
+        <include_interrupt_actions ref="findCollect" />
+        <include_interrupt_actions ref="pruneCollectIds" />
+        <do_if value="$collectFound or $collectIdsLeft gt 0 or @this.$SmartMinelayerSurplus gt 0">
+          <resume label="deployLoop" />
+        </do_if>
         <debug_text text="'SmartMinelayer: %s has no slots and no target, standing by'.[this.assignedcontrolled.debugname]" chance="$debugChance" />
         <resume label="standBy" />
       </do_if>
@@ -399,7 +499,7 @@
       <include_interrupt_actions ref="requestSlots" />
       <set_value name="this.$SmartMinelayerConfigRequestData" exact="table[
         $callbackObject = this.assignedcontrolled,
-        $reviewOnly = false,
+        $fromConfigure = false,
         $sector = $targetSector,
         $targetPosition = @$targetPosition,
         $targetObject = if @$targetObject.exists then $targetObject else null,
@@ -434,6 +534,11 @@
 
       <!-- the window's answer is one op on the pilot: add, edit or delete a slot -->
       <label name="configReady" />
+      <do_if value="@$collectObj">
+        <include_interrupt_actions ref="releaseCollect" />
+      </do_if>
+      <remove_value name="$collectObj" />
+      <remove_value name="$collectUid" />
       <remove_value name="this.$SmartMinelayerConfigRequestData" />
       <set_value name="$phase" exact="'apply'" />
       <include_interrupt_actions ref="bindState" />
@@ -461,15 +566,36 @@
           <debug_text text="'SmartMinelayer: %s cannot edit slot %s: no entry'.[this.assignedcontrolled.debugname, $op.$uid]" filter="error" />
         </do_if>
         <do_elseif value="@$op.$moved == 1">
-          <!-- the mines it releases stay watched under a fresh uid that no list holds; released towers are left alone -->
-          <do_if value="$applyEntry.$scan? and $applyEntry.$items.keys.count gt 0">
+          <!-- items on points the window's remap keeps stay; the others wait under a fresh uid that no list holds, for the wing to collect -->
+          <set_value name="$keptItems" exact="table[]" />
+          <set_value name="$collectItems" exact="table[]" />
+          <do_for_each name="$applyItem" valuename="$applyK" in="$applyEntry.$items">
+            <set_value name="$applyNewK" exact="if $op.$remap? then @$op.$remap.{$applyK} else 0" />
+            <do_if value="$applyNewK gt 0">
+              <set_value name="$keptItems.{$applyItem}" exact="$applyNewK" />
+            </do_if>
+            <do_elseif value="$applyItem.exists">
+              <set_value name="$collectItems.{$applyItem}" exact="$applyK" />
+            </do_elseif>
+          </do_for_each>
+          <do_if value="$collectItems.keys.count gt 0">
             <set_value name="player.entity.$SmartMinelayer.$nextId" operation="add" />
             <set_value name="$uidN" exact="player.entity.$SmartMinelayer.$nextId" />
             <include_interrupt_actions ref="makeUid" />
-            <set_value name="$slots.{'$' + $newUid}" exact="table[$uid = $newUid, $ship = this.assignedcontrolled, $sector = $applyEntry.$sector, $items = $applyEntry.$items, $dead = if $applyEntry.$dead? then $applyEntry.$dead else [], $nextSweep = player.age, $scan = $applyEntry.$scan]" />
-            <debug_text text="'SmartMinelayer: %s slot %s moved, its %s items stay watched as %s'.[this.assignedcontrolled.debugname, $op.$uid, $applyEntry.$items.keys.count, $newUid]" chance="$debugChance" />
+            <set_value name="$collectEntry" exact="table[$uid = $newUid, $ship = this.assignedcontrolled, $sector = $applyEntry.$sector, $items = $collectItems, $collect = true, $inFlight = table[], $dead = [], $nextSweep = player.age]" />
+            <do_if value="$applyEntry.$scan?">
+              <set_value name="$collectEntry.$scan" exact="table[$stats = @$applyEntry.$scan.$stats, $count = -1, $nextScan = player.age]" />
+            </do_if>
+            <set_value name="$slots.{'$' + $newUid}" exact="$collectEntry" />
           </do_if>
-          <set_value name="$applyEntry.$items" exact="table[]" />
+          <debug_text text="'SmartMinelayer: %s slot %s moved: %s items kept, %s to collect as %s'.[this.assignedcontrolled.debugname, $op.$uid, $keptItems.keys.count, $collectItems.keys.count, @$newUid]" chance="$debugChance" />
+          <set_value name="$applyEntry.$items" exact="$keptItems" />
+          <remove_value name="$keptItems" />
+          <remove_value name="$collectItems" />
+          <remove_value name="$collectEntry" />
+          <remove_value name="$applyItem" />
+          <remove_value name="$applyK" />
+          <remove_value name="$applyNewK" />
           <set_value name="$applyEntry.$dead" exact="[]" />
           <set_value name="$applyEntry.$missing" exact="[]" />
           <set_value name="$applyEntry.$inFlight" exact="table[]" />
@@ -478,10 +604,19 @@
       <do_elseif value="$opName == 'delete' and $opIdx gt 0">
         <remove_from_list name="this.$SmartMinelayerSlotIds" exact="$op.$uid" />
         <set_value name="$cutKey" exact="'$' + $op.$uid" />
+        <set_value name="$cutCollect" exact="@$op.$collect == 1" />
         <include_interrupt_actions ref="cutEntry" />
-        <remove_value name="$cutKey" />
+        <!-- the slot stays this ship's, hidden from the window, until its last item is collected -->
+        <do_if value="@player.entity.$SmartMinelayer.$slots.{$cutKey}.$collect">
+          <do_if value="not this.$SmartMinelayerCollectIds?">
+            <set_value name="this.$SmartMinelayerCollectIds" exact="[]" />
+          </do_if>
+          <append_to_list name="this.$SmartMinelayerCollectIds" exact="$op.$uid" />
+        </do_if>
         <set_value name="$allDeleted" exact="this.$SmartMinelayerSlotIds.count == 0" />
-        <debug_text text="'SmartMinelayer: %s deleted slot %s, %s left'.[this.assignedcontrolled.debugname, $op.$uid, this.$SmartMinelayerSlotIds.count]" chance="$debugChance" />
+        <debug_text text="'SmartMinelayer: %s deleted slot %s, collect %s, %s left'.[this.assignedcontrolled.debugname, $op.$uid, $cutCollect, this.$SmartMinelayerSlotIds.count]" chance="$debugChance" />
+        <remove_value name="$cutKey" />
+        <remove_value name="$cutCollect" />
       </do_elseif>
       <do_else>
         <debug_text text="'SmartMinelayer: %s ignored op %s for slot %s (listed at %s of %s), macro %s'.[this.assignedcontrolled.debugname, $opName, @$op.$uid, $opIdx, $slotIds.count, @this.$SmartMinelayerDeployableMacro]" filter="error" />
@@ -546,13 +681,49 @@
       <include_interrupt_actions ref="readDebugChances" />
       <remove_value name="$refuge" />
       <include_interrupt_actions ref="bindState" />
+      <do_if value="@$collectObj">
+        <include_interrupt_actions ref="releaseCollect" />
+      </do_if>
+      <remove_value name="$collectObj" />
+      <remove_value name="$collectUid" />
       <do_if value="not $deployableMacro">
         <resume label="preMonitorLoop" />
       </do_if>
       <include_interrupt_actions ref="findWork" />
-      <do_if value="not $workUid">
-        <resume label="preMonitorLoop" />
+      <include_interrupt_actions ref="findCollect" />
+      <!-- collect until the storage is full, then lay until it is empty or nothing is missing, then again -->
+      <set_value name="$deployFree" exact="this.assignedcontrolled.ammostorage.deployable.free" />
+      <do_if value="not $workUid or this.assignedcontrolled.ammostorage.{$deployableMacro}.count lt 1">
+        <set_value name="$layMode" exact="false" />
       </do_if>
+      <do_elseif value="$deployFree lt 1">
+        <set_value name="$layMode" exact="true" />
+      </do_elseif>
+      <do_if value="$collectFound and $deployFree ge 1 and not @$layMode">
+        <remove_value name="$deployFree" />
+        <resume label="collectTake" />
+      </do_if>
+      <remove_value name="$deployFree" />
+      <do_if value="$workUid">
+        <resume label="refillLoop" />
+      </do_if>
+      <!-- nothing left to lay: collected items not laid again go back, also mid-cycle when they fill the storage -->
+      <do_if value="@this.$SmartMinelayerSurplus gt 0 and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age)">
+        <resume label="returnSurplus" />
+      </do_if>
+      <do_if value="not $collectFound and this.$SmartMinelayerSurplus? and this.$SmartMinelayerSurplus le 0">
+        <remove_value name="this.$SmartMinelayerSurplus" />
+        <remove_value name="this.$SmartMinelayerSurplusNext" />
+      </do_if>
+      <do_if value="$slotIds.count == 0 and not @this.assignedcontrolled.commander">
+        <!-- the wingmen may still collect the last items of a deleted slot -->
+        <include_interrupt_actions ref="pruneCollectIds" />
+        <do_if value="$collectIdsLeft == 0">
+          <debug_text text="'SmartMinelayer: %s has no slots and nothing left to collect, standing by'.[this.assignedcontrolled.debugname]" chance="$debugChance" />
+          <resume label="standBy" />
+        </do_if>
+      </do_if>
+      <resume label="preMonitorLoop" />
 
       <label name="refillLoop" />
       <do_if value="this.assignedcontrolled.ammostorage.{$deployableMacro}.count ge 1">
@@ -562,8 +733,7 @@
       <do_if value="@this.$SmartMinelayerRestock.$next gt player.age">
         <set_command_action commandaction="commandaction.standingby" />
         <wait exact="this.$SmartMinelayerRestock.$next - player.age" />
-        <include_interrupt_actions ref="bindState" />
-        <resume label="refillLoop" />
+        <resume label="deployLoop" />
       </do_if>
       <do_if value="@this.$SmartMinelayerRestock.$tries ge 5">
         <debug_text text="'SmartMinelayer: %s could not restock %s after %s tries'.[this.assignedcontrolled.debugname, $deployableMacro, this.$SmartMinelayerRestock.$tries]" filter="error" />
@@ -746,7 +916,20 @@
       <set_value name="$placingSector" exact="if @$takeEntry.$sector.exists then $takeEntry.$sector else $targetSector" />
       <create_position name="$placingPosition" space="$placingSector" x="$pos.$x" y="$pos.$y" z="$pos.$z" />
       <debug_text text="'SmartMinelayer: %s deploying position %s of slot %s in %s, %s left'.[this.assignedcontrolled.debugname, $takeK, $takeUid, $placingSector.debugname, $takeEntry.$missing.count]" chance="$traceChance" />
+      <resume label="flyToPlacing" />
 
+      <!-- the order holds a collect claim only while it flies to the item -->
+      <label name="collectTake" />
+      <set_value name="$collectObj" exact="$collectFound" />
+      <set_value name="$collectUid" exact="$collectFoundUid" />
+      <set_value name="$collectEntry" exact="$slots.{'$' + $collectUid}" />
+      <set_value name="$collectEntry.$inFlight.{$collectObj}" exact="this.assignedcontrolled" />
+      <set_value name="$placingSector" exact="$collectObj.sector" />
+      <create_position name="$placingPosition" space="$placingSector" object="$collectObj" />
+      <debug_text text="'SmartMinelayer: %s collecting %s of %s in %s, %s left there, free storage %s'.[this.assignedcontrolled.debugname, $collectObj.debugname, $collectUid, $placingSector.debugname, $collectEntry.$items.keys.count, this.assignedcontrolled.ammostorage.deployable.free]" chance="$traceChance" />
+      <remove_value name="$collectEntry" />
+
+      <label name="flyToPlacing" />
       <do_if value="@this.assignedcontrolled.sector != $placingSector">
         <do_if value="this.assignedcontrolled.sector.gatedistance.{$placingSector}.{blacklistgroup.military}.{this.assignedcontrolled} lt 0">
           <debug_text text="'SmartMinelayer: %s cannot reach %s past the military blacklist'.[this.assignedcontrolled.debugname, $placingSector.debugname]" filter="error" />
@@ -802,7 +985,7 @@
         <do_if value="$approachCounter gt 10 or player.age ge $exactMoveEnd">
           <!-- close enough is good enough; far off means the spot is blocked, so try it again later -->
           <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $standPosition] gt 500m">
-            <debug_text text="'SmartMinelayer: %s cannot reach position %s of slot %s, %s away, queued again'.[this.assignedcontrolled.debugname, $takeK, $takeUid, this.assignedcontrolled.distanceto.[$placingSector, $standPosition]]" filter="error" />
+            <debug_text text="'SmartMinelayer: %s cannot reach %s, %s away, queued again'.[this.assignedcontrolled.debugname, if @$collectObj then $collectObj.debugname else 'position %s of slot %s'.[$takeK, $takeUid], this.assignedcontrolled.distanceto.[$placingSector, $standPosition]]" filter="error" />
             <set_value name="$requeue" exact="true" />
             <resume label="positionDone" />
           </do_if>
@@ -819,6 +1002,9 @@
       <stop_moving object="this.assignedcontrolled" />
       <do_if value="this.assignedcontrolled.distanceto.[$placingSector, $placingPosition] gt $distanceThreshold">
         <resume label="moveToTarget" />
+      </do_if>
+      <do_if value="@$collectObj">
+        <resume label="collectAtPoint" />
       </do_if>
 
       <!-- an edit or a delete while in flight takes the position away -->
@@ -845,6 +1031,10 @@
         <do_if value="$takeEntry.$scan?">
           <set_value name="$takeEntry.$scan.$count" exact="-1" />
         </do_if>
+        <!-- a collect cycle counts net: below zero when the reserve laid more than was collected so far -->
+        <do_if value="this.$SmartMinelayerSurplus?">
+          <set_value name="this.$SmartMinelayerSurplus" operation="subtract" />
+        </do_if>
         <set_value name="$lastSector" exact="$placingSector" />
         <debug_text text="'SmartMinelayer: %s deployed %s at position %s of slot %s, %s left'.[this.assignedcontrolled.debugname, $deployedObj.debugname, $takeK, $takeUid, $takeEntry.$missing.count]" chance="$traceChance" />
       </do_if>
@@ -855,13 +1045,22 @@
       </do_else>
 
       <label name="positionDone" />
-      <do_if value="@$requeue">
+      <do_if value="@$requeue and @$takeUid">
         <set_value name="$reqEntry" exact="@player.entity.$SmartMinelayer.$slots.{'$' + $takeUid}" />
         <set_value name="$reqK" exact="$takeK" />
         <include_interrupt_actions ref="requeuePosition" />
         <remove_value name="$reqEntry" />
         <remove_value name="$reqK" />
       </do_if>
+      <do_if value="@$collectObj">
+        <!-- a blocked item waits, so the nearest-first pick does not return to it at once -->
+        <do_if value="@$requeue">
+          <set_value name="$collectSkip.{$collectObj}" exact="player.age + 10min" />
+        </do_if>
+        <include_interrupt_actions ref="releaseCollect" />
+      </do_if>
+      <remove_value name="$collectObj" />
+      <remove_value name="$collectUid" />
       <remove_value name="$requeue" />
       <remove_value name="$pos" />
       <remove_value name="$takeUid" />
@@ -875,6 +1074,159 @@
         <set_order_failed order="this.assignedcontrolled.order" text="{1972092417, 10008}" />
         <resume label="failedOrder" />
       </do_if>
+      <resume label="deployLoop" />
+
+      <!-- an edit, a delete or another ship may have taken the item meanwhile -->
+      <label name="collectAtPoint" />
+      <include_interrupt_actions ref="bindState" />
+      <set_value name="$collectEntry" exact="@$slots.{'$' + $collectUid}" />
+      <do_if value="typeof $collectEntry != datatype.table or not $collectObj.exists or @$collectEntry.$inFlight.{$collectObj} != this.assignedcontrolled">
+        <debug_text text="'SmartMinelayer: %s lost %s of %s while flying to it, skipped'.[this.assignedcontrolled.debugname, @$collectObj.debugname, $collectUid]" chance="$debugChance" />
+        <remove_value name="$collectEntry" />
+        <resume label="positionDone" />
+      </do_if>
+      <set_value name="$collectBefore" exact="this.assignedcontrolled.ammostorage.{$deployableMacro}.count" />
+      <set_object_active object="$collectObj" activate="false" />
+      <collect_deployable object="this.assignedcontrolled" deployable="$collectObj" />
+      <remove_value name="$collectEntry.$inFlight.{$collectObj}" />
+      <do_if value="this.assignedcontrolled.ammostorage.{$deployableMacro}.count gt $collectBefore">
+        <remove_value name="$collectEntry.$items.{$collectObj}" />
+        <set_value name="this.$SmartMinelayerSurplus" exact="(if this.$SmartMinelayerSurplus? then this.$SmartMinelayerSurplus else 0) + 1" />
+        <debug_text text="'SmartMinelayer: %s collected %s of %s, %s left there, now %s aboard, surplus %s'.[this.assignedcontrolled.debugname, $collectObj.debugname, $collectUid, $collectEntry.$items.keys.count, this.assignedcontrolled.ammostorage.{$deployableMacro}.count, this.$SmartMinelayerSurplus]" chance="$traceChance" />
+      </do_if>
+      <do_else>
+        <set_object_active object="$collectObj" activate="true" />
+        <set_value name="$collectSkip.{$collectObj}" exact="player.age + 10min" />
+        <debug_text text="'SmartMinelayer: %s failed to collect %s of %s, free storage %s, tried again in 10 min'.[this.assignedcontrolled.debugname, $collectObj.debugname, $collectUid, this.assignedcontrolled.ammostorage.deployable.free]" filter="error" />
+      </do_else>
+      <do_if value="$collectEntry.$items.keys.count == 0">
+        <remove_value name="$slots.{'$' + $collectUid}" />
+        <debug_text text="'SmartMinelayer: %s collected the last item of %s'.[this.assignedcontrolled.debugname, $collectUid]" chance="$debugChance" />
+      </do_if>
+      <remove_value name="$collectEntry" />
+      <remove_value name="$collectBefore" />
+      <resume label="positionDone" />
+
+      <!-- collected items not laid again go back to a station that builds them: their build inputs into an own one, their build price from another faction's -->
+      <label name="returnSurplus" />
+      <set_value name="$phase" exact="'return'" />
+      <set_value name="$retWare" exact="$deployableMacro.ware" />
+      <set_value name="$retAmount" exact="[this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />
+      <do_if value="$retAmount lt 1">
+        <debug_text text="'SmartMinelayer: %s has no %s aboard to return, surplus %s dropped'.[this.assignedcontrolled.debugname, $deployableMacro, this.$SmartMinelayerSurplus]" chance="$debugChance" />
+        <remove_value name="this.$SmartMinelayerSurplus" />
+        <remove_value name="this.$SmartMinelayerSurplusNext" />
+        <resume label="returnDone" />
+      </do_if>
+      <set_value name="$retInputs" exact="table[]" />
+      <do_for_each name="$retInput" in="@this.$SmartMinelayerDeployableInputs.$wares">
+        <set_value name="$retInputs.{ware.{$retInput.$ware}}" exact="$retInput.$amount" />
+      </do_for_each>
+      <remove_value name="$retInput" />
+      <set_value name="$retRunAmount" exact="[@this.$SmartMinelayerDeployableInputs.$runAmount, 1].max" />
+      <!-- as the restock searches: this sector, two gates, anywhere; own stations first, others only if the window allows them -->
+      <set_value name="$retStation" exact="null" />
+      <find_cluster_in_range name="$retClusters" object="this.assignedcontrolled" maxdistance="2" mindistance="0" multiple="true" />
+      <set_value name="$retSpaces" exact="[this.sector, $retClusters, player.galaxy]" />
+      <do_all exact="$retSpaces.count" counter="$retPass">
+        <find_station name="$retCandidates" canequipclass="this.assignedcontrolled.class" canbuildfor="this.owner" hascontrolentity="controlpost.shiptrader" space="$retSpaces.{$retPass}" knownto="faction.player" multiple="true" sortbydistanceto="this.assignedcontrolled">
+          <match_relation_to object="this.assignedcontrolled" relation="enemy" comparison="not" />
+          <match_use_blacklist group="blacklistgroup.military" type="blacklisttype.objectactivity" object="this.assignedcontrolled" />
+          <match_use_blacklist group="blacklistgroup.military" type="blacklisttype.sectoractivity" object="this.assignedcontrolled" />
+          <match_use_blacklist group="blacklistgroup.military" type="blacklisttype.sectortravel" object="this.assignedcontrolled" />
+        </find_station>
+        <do_all exact="if @this.$SmartMinelayerRestockNpc == 1 then 2 else 1" counter="$retRound">
+          <do_for_each name="$retLoc" in="$retCandidates">
+            <do_if value="$retLoc.isplayerowned == ($retRound == 1)">
+              <include_interrupt_actions ref="checkReturnStation" />
+              <do_if value="$retLocOk">
+                <set_value name="$retStation" exact="$retLoc" />
+                <break />
+              </do_if>
+            </do_if>
+          </do_for_each>
+          <do_if value="$retStation">
+            <break />
+          </do_if>
+        </do_all>
+        <do_if value="$retStation">
+          <break />
+        </do_if>
+      </do_all>
+      <remove_value name="$retClusters" />
+      <remove_value name="$retSpaces" />
+      <remove_value name="$retPass" />
+      <remove_value name="$retRound" />
+      <remove_value name="$retCandidates" />
+      <remove_value name="$retLoc" />
+      <do_if value="not $retStation">
+        <set_value name="this.$SmartMinelayerSurplusNext" exact="player.age + 10min" />
+        <debug_text text="'SmartMinelayer: %s found no known station that builds %s and takes back %s of it, other factions\' stations %s, next try in 10 min'.[this.assignedcontrolled.debugname, $deployableMacro, $retAmount, if @this.$SmartMinelayerRestockNpc == 1 then 'allowed' else 'not allowed']" filter="error" />
+        <resume label="returnDone" />
+      </do_if>
+      <debug_text text="'SmartMinelayer: %s returns %s of %s to %s (%s), %s Cr each'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, if $retStation.isplayerowned then 'own' else 'other faction', $retUnitPrice / 1Cr]" chance="$debugChance" />
+      <do_if value="@this.assignedcontrolled.dock.container != $retStation">
+        <run_script name="'order.dock'" sinceversion="6">
+          <param name="destination" value="$retStation" />
+        </run_script>
+      </do_if>
+      <do_if value="@this.assignedcontrolled.dock.container != $retStation">
+        <set_value name="this.$SmartMinelayerSurplusNext" exact="player.age + 10min" />
+        <debug_text text="'SmartMinelayer: %s could not dock at %s to return its surplus, next try in 10 min'.[this.assignedcontrolled.debugname, $retStation.debugname]" filter="error" />
+        <resume label="returnDone" />
+      </do_if>
+      <set_command command="command.dockat" param="$retStation" />
+      <set_command_action commandaction="commandaction.waitingtodock" />
+      <wait exact="10s" sinceversion="6" />
+      <!-- the station's storage or money may have changed on the way -->
+      <set_value name="$retLoc" exact="$retStation" />
+      <set_value name="$retAmount" exact="[@this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />
+      <include_interrupt_actions ref="checkReturnStation" />
+      <remove_value name="$retLoc" />
+      <do_if value="not $retLocOk or @this.assignedcontrolled.dock.container != $retStation">
+        <set_value name="this.$SmartMinelayerSurplusNext" exact="player.age + 10min" />
+        <debug_text text="'SmartMinelayer: %s lost %s as surplus taker while docked, next try in 10 min'.[this.assignedcontrolled.debugname, $retStation.debugname]" filter="error" />
+        <resume label="returnDone" />
+      </do_if>
+      <remove_ammo object="this.assignedcontrolled" macro="$deployableMacro" amount="$retLocAmount" />
+      <do_if value="$retStation.isplayerowned">
+        <set_value name="$retAdded" exact="table[]" />
+        <do_for_each name="$retInput" valuename="$retPerRun" in="$retInputs">
+          <set_value name="$retAdd" exact="(($retPerRun * $retLocAmount) / $retRunAmount)i" />
+          <do_if value="$retAdd gt 0">
+            <add_cargo object="$retStation" ware="$retInput" exact="$retAdd" />
+            <set_value name="$retAdded.{$retInput}" exact="$retAdd" />
+          </do_if>
+        </do_for_each>
+        <debug_text text="'SmartMinelayer: %s returned %s of %s to %s as build inputs %s'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, $retAdded]" chance="$debugChance" />
+        <remove_value name="$retAdd" />
+        <remove_value name="$retAdded" />
+      </do_if>
+      <do_else>
+        <set_value name="$retPrice" exact="(($retUnitPrice * $retLocAmount / 1Cr)i)Cr" />
+        <set_value name="$retPlayerMoney" exact="player.money" />
+        <transfer_money from="$retStation" to="faction.player" amount="$retPrice" />
+        <debug_text text="'SmartMinelayer: %s sold %s of %s to %s for %s Cr, player received %s Cr'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, $retPrice / 1Cr, (player.money - $retPlayerMoney) / 1Cr]" chance="$debugChance" />
+        <remove_value name="$retPlayerMoney" />
+      </do_else>
+      <set_value name="this.$SmartMinelayerSurplus" operation="subtract" exact="$retLocAmount" />
+      <do_if value="this.$SmartMinelayerSurplus le 0">
+        <remove_value name="this.$SmartMinelayerSurplus" />
+        <remove_value name="this.$SmartMinelayerSurplusNext" />
+      </do_if>
+
+      <label name="returnDone" />
+      <remove_value name="$retWare" />
+      <remove_value name="$retAmount" />
+      <remove_value name="$retInputs" />
+      <remove_value name="$retInput" />
+      <remove_value name="$retPerRun" />
+      <remove_value name="$retRunAmount" />
+      <remove_value name="$retStation" />
+      <remove_value name="$retLocOk" />
+      <remove_value name="$retLocAmount" />
+      <remove_value name="$retUnitPrice" />
+      <remove_value name="$retPrice" />
       <resume label="deployLoop" />
 
       <label name="preMonitorLoop" />
@@ -960,7 +1312,7 @@
       <set_command_action commandaction="commandaction.investigating" param="$parkSector" />
       <wait exact="$checkInterval" />
       <include_interrupt_actions ref="readDebugChances" />
-      <do_if value="@this.assignedcontrolled.commander and not @this.$SmartMinelayerSlotIds.count and @this.assignedcontrolled.commanderentity.$SmartMinelayerSlotIds.count gt 0">
+      <do_if value="@this.assignedcontrolled.commander and ((not @this.$SmartMinelayerSlotIds.count and @this.assignedcontrolled.commanderentity.$SmartMinelayerSlotIds.count gt 0) or (not @this.$SmartMinelayerDeployableMacro and @this.assignedcontrolled.commanderentity.$SmartMinelayerCollectIds.count gt 0))">
         <set_value name="$copyFrom" exact="this.assignedcontrolled.commanderentity" />
         <set_value name="$copyTo" exact="this" />
         <include_interrupt_actions ref="copySettings" />
@@ -972,8 +1324,18 @@
       <do_if value="$workUid">
         <resume label="deployLoop" />
       </do_if>
+      <include_interrupt_actions ref="findCollect" />
+      <do_if value="($collectFound and this.assignedcontrolled.ammostorage.deployable.free ge 1) or (@this.$SmartMinelayerSurplus gt 0 and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age))">
+        <resume label="deployLoop" />
+      </do_if>
       <do_if value="@this.assignedcontrolled.commander">
         <resume label="monitorLoop" />
+      </do_if>
+      <do_if value="$slotIds.count == 0">
+        <include_interrupt_actions ref="pruneCollectIds" />
+        <do_if value="$collectIdsLeft == 0">
+          <resume label="deployLoop" />
+        </do_if>
       </do_if>
       <!-- a missed destroy event shows once the scanner has dropped the dead item record -->
       <do_for_each name="$monUid" in="$slotIds">
@@ -1053,9 +1415,10 @@
         <remove_value name="$syncFrom" />
         <resume label="deployLoop" />
       </do_if>
+      <!-- deployLoop also collects and returns the surplus, then goes on to preMonitorLoop -->
       <do_if value="$syncFrom == 'check'">
         <remove_value name="$syncFrom" />
-        <resume label="preMonitorLoop" />
+        <resume label="deployLoop" />
       </do_if>
       <remove_value name="$syncFrom" />
       <resume label="monitorLoop" />
@@ -1070,6 +1433,10 @@
       <set_value name="$phase" exact="'idle'" />
       <set_command_action commandaction="commandaction.standingby" />
       <wait exact="600s" />
+      <!-- a surplus return that found no station is tried again -->
+      <do_if value="@this.$SmartMinelayerSurplus gt 0">
+        <resume label="deployLoop" />
+      </do_if>
       <resume label="standBy" />
     </actions>
   </attention>
@@ -1081,10 +1448,16 @@
       <set_value name="$reqK" exact="$takeK" />
       <include_interrupt_actions ref="requeuePosition" />
     </do_if>
+    <do_if value="@$collectObj and @$collectUid">
+      <include_interrupt_actions ref="releaseCollect" />
+    </do_if>
     <!-- kept while this is still the default order, so a restart resumes the field; the scanner drops slots no ship lists -->
     <do_if value="@this.assignedcontrolled.defaultorder.id != 'SmartMinelayer' and @this.assignedcontrolled.defaultorder.id != 'Assist'">
       <set_value name="$targetForClear" exact="this" />
+      <!-- a wingman its commander restarts keeps the count of the collected items it carries -->
+      <set_value name="$keepSurplus" exact="@this.assignedcontrolled.commander.defaultorder.id == 'SmartMinelayer'" />
       <include_interrupt_actions ref="clearBlackboardVariables" />
+      <remove_value name="$keepSurplus" />
       <!-- the ship is gone when it was destroyed with the order running -->
       <do_if value="@this.assignedcontrolled.exists">
         <do_for_each name="$subordinate" in="this.assignedcontrolled.subordinates">

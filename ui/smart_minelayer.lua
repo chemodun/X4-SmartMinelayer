@@ -387,16 +387,6 @@ end
 
 -- *** config state ***
 
-local function positionsMatch(p1, p2)
-  if p1 == nil and p2 == nil then return true end
-  if p1 == nil or p2 == nil then return false end
-  if not (p1[1] and p2[1] and IsSameComponent(p1[1], p2[1])) then return false end
-  local c1, c2 = p1[2], p2[2]
-  if type(c1) ~= "table" or type(c2) ~= "table" then return false end
-  local dx, dy, dz = (c1.x or 0) - (c2.x or 0), (c1.y or 0) - (c2.y or 0), (c1.z or 0) - (c2.z or 0)
-  return dx * dx + dy * dy + dz * dz < 100
-end
-
 local function samePositions(a, b)
   if #a ~= #b then return false end
   for i = 1, #a do
@@ -406,9 +396,69 @@ local function samePositions(a, b)
   return true
 end
 
+-- per old point the new point within 1 m that replaces it, or 0; each new point is taken once
+local function remapPositions(old, new)
+  local cell = 10
+  local function cellKey(x, y, z) return x .. ":" .. y .. ":" .. z end
+  local grid = {}
+  for j, p in ipairs(new) do
+    local k = cellKey(math.floor(p.x / cell), math.floor(p.y / cell), math.floor(p.z / cell))
+    grid[k] = grid[k] or {}
+    table.insert(grid[k], j)
+  end
+  local used, remap = {}, {}
+  for i, p in ipairs(old) do
+    local cx, cy, cz = math.floor(p.x / cell), math.floor(p.y / cell), math.floor(p.z / cell)
+    local best, bestD = 0, 1
+    for dx = -1, 1 do
+      for dy = -1, 1 do
+        for dz = -1, 1 do
+          for _, j in ipairs(grid[cellKey(cx + dx, cy + dy, cz + dz)] or {}) do
+            local q = new[j]
+            local ex, ey, ez = q.x - p.x, q.y - p.y, q.z - p.z
+            local d = ex * ex + ey * ey + ez * ez
+            if not used[j] and d <= bestD then best, bestD = j, d end
+          end
+        end
+      end
+    end
+    if best > 0 then used[best] = true end
+    remap[i] = best
+  end
+  return remap
+end
+
 function sm.oldSlotPositions(cfg, index)
   local list = cfg.slotPositions[index]
   return (type(list) == "table") and list or {}
+end
+
+-- Configure: the slot on this tab becomes the one the window edits
+function sm.loadSlot(cfg, index)
+  local slot = cfg.slotList[index] ---@type any
+  cfg.originalValues = {}
+  for _, field in ipairs(SLOT_FIELDS) do
+    cfg[field] = slot[field] or config.defaults[field]
+    cfg.originalValues[field] = cfg[field]
+  end
+  cfg.sector               = slot.sector or (slot.targetPosition and slot.targetPosition[1])
+  cfg.targetObject         = slot.targetObject
+  cfg.targetObjectPosition = slot.targetObjectPosition
+  cfg.targetObjectRotation = slot.targetObjectRotation
+  cfg.targetPosition       = slot.targetPosition
+  cfg.restockNpc           = cfg.originalRestockNpc
+  cfg.editingSlotIndex, cfg.editingTabIndex, cfg.activeTab = index, index, index
+  cfg.deleteArmedTab       = nil
+  cfg.deleteCollect        = false
+end
+
+function sm.isDirty(cfg)
+  if not cfg.originalValues then return false end
+  if cfg.restockNpc ~= cfg.originalRestockNpc then return true end
+  for _, field in ipairs(SLOT_FIELDS) do
+    if cfg[field] ~= cfg.originalValues[field] then return true end
+  end
+  return false
 end
 
 -- a mine carries its library entry (damage, friend/foe, tracking, trigger range), package size and follow range
@@ -520,7 +570,7 @@ function sm.newConfigState(request)
   cfg.targetObjectPosition = req.targetObjectPosition
   cfg.targetObjectRotation = req.targetObjectRotation
   cfg.targetPosition       = req.targetPosition
-  cfg.reviewOnly           = req.reviewOnly
+  cfg.fromConfigure        = req.fromConfigure
 
   -- the order's copy of the ship's slots in tab order: uid, config, positions
   ---@type table<string, any>[]
@@ -558,38 +608,17 @@ function sm.newConfigState(request)
   end
   sm.filterWareOptions(cfg)
 
-  local matchIdx
-  if not cfg.reviewOnly then
-    for i, slot in ipairs(cfg.slotList) do
-      if cfg.targetObject then
-        if slot.targetObject and IsSameComponent(slot.targetObject, cfg.targetObject) then matchIdx = i; break end
-      elseif not slot.targetObject and positionsMatch(cfg.targetPosition, slot.targetPosition) then
-        matchIdx = i
-        break
-      end
-    end
-  end
-
-  if matchIdx then
-    local slot = cfg.slotList[matchIdx] ---@type any
-    cfg.originalValues = {}
-    for _, field in ipairs(SLOT_FIELDS) do
-      cfg[field] = slot[field] or config.defaults[field]
-      cfg.originalValues[field] = cfg[field]
-    end
-    cfg.editingSlotIndex = matchIdx
-    cfg.editingTabIndex  = matchIdx
-    cfg.activeTab        = matchIdx
-  elseif cfg.reviewOnly or #cfg.slotList >= config.maxSlots then
-    -- tab 0 never matches, so every tab is read only
-    cfg.slotLimitReached = not cfg.reviewOnly
-    cfg.editingTabIndex  = 0
-    cfg.activeTab        = math.max(1, #cfg.slotList)
-  else
+  -- Configure edits or deletes one saved slot per Confirm; any other request only adds one
+  cfg.configure = cfg.fromConfigure or #cfg.slotList >= config.maxSlots
+  if not cfg.configure then
     cfg.editingTabIndex = #cfg.slotList + 1
     cfg.activeTab       = cfg.editingTabIndex
+    if not cfg.targetObject then cfg.offsetDirection = 0 end
+  elseif #cfg.slotList > 0 then
+    sm.loadSlot(cfg, 1)
+  else
+    cfg.editingTabIndex, cfg.activeTab = 0, 1
   end
-  if not cfg.targetObject then cfg.offsetDirection = 0 end
   return cfg
 end
 
@@ -604,14 +633,14 @@ function sm.onConfigure(_, handle)
     sm.Debug("config request of %s has no data", tostring(handle64))
     return
   end
-  req.reviewOnly = (req.reviewOnly == true or req.reviewOnly == 1)
+  req.fromConfigure = (req.fromConfigure == true or req.fromConfigure == 1)
   local key = tostring(handle64)
   for i, request in ipairs(sm.requests) do
     if request.key == key then
-      if request.req.reviewOnly and not req.reviewOnly then
+      if request.req.fromConfigure and not req.fromConfigure then
         request.req, request.callbackObject, request.cfg = req, req.callbackObject, nil
         if i == 1 then sm.dropWindow() end
-        sm.Debug("review of %s replaced by its config request", key)
+        sm.Debug("Configure window of %s replaced by its config request", key)
       end
       return
     end
@@ -623,7 +652,7 @@ function sm.onConfigure(_, handle)
 end
 
 function sm.openRequest(request)
-  if not request.req.reviewOnly and type(GetNPCBlackboard(request.handle, config.requestVar)) ~= "table" then
+  if not request.req.fromConfigure and type(GetNPCBlackboard(request.handle, config.requestVar)) ~= "table" then
     sm.Debug("config request of %s was withdrawn", request.key)
     table.remove(sm.requests, 1)
     return
@@ -676,7 +705,7 @@ function sm.finishRequest()
   local request = sm.requests[1]
   sm.dropWindow()
   table.remove(sm.requests, 1)
-  if request and request.req.reviewOnly then
+  if request and request.req.fromConfigure then
     SetNPCBlackboard(request.handle, config.requestVar, nil)
   end
   return request
@@ -701,9 +730,16 @@ function sm.onConfigOK()
   local op = { op = "add", slot = slotEntry, positions = positions }
   local edited = cfg.editingSlotIndex
   if edited then
-    -- moved = 0 keeps the items already laid for this slot
-    local same = samePositions(sm.oldSlotPositions(cfg, edited), positions)
+    -- moved = 0 keeps every laid item; a move keeps those the remap places and collects the rest
+    local oldPositions = sm.oldSlotPositions(cfg, edited)
+    local same = samePositions(oldPositions, positions)
     op.op, op.uid, op.moved = "edit", cfg.slotIds[edited], same and 0 or 1
+    if not same then
+      op.remap = remapPositions(oldPositions, positions)
+      local kept = 0
+      for _, j in ipairs(op.remap) do if j > 0 then kept = kept + 1 end end
+      sm.Debug("slot %s moved: %d of %d old points kept", op.uid, kept, #oldPositions)
+    end
   end
   sm.Debug("%s slot %s of %s: %d positions, macro %s", op.op, tostring(op.uid or (#cfg.slotList + 1)), request.key, #positions, cfg.wareMacro)
 
@@ -739,15 +775,15 @@ function sm.onConfigDelete(deleted)
   local request = sm.requests[1]
   local cfg = request and request.cfg
   if not (cfg and cfg.slotIds[deleted]) then return end
-  sm.Debug("slot %d (%s) of %s deleted, %d slots left", deleted, cfg.slotIds[deleted], request.key, #cfg.slotList - 1)
-  SetNPCBlackboard(request.handle, config.opVar, { op = "delete", uid = cfg.slotIds[deleted] })
+  sm.Debug("slot %d (%s) of %s deleted, collect %s, %d slots left", deleted, cfg.slotIds[deleted], request.key, tostring(cfg.deleteCollect == true), #cfg.slotList - 1)
+  SetNPCBlackboard(request.handle, config.opVar, { op = "delete", uid = cfg.slotIds[deleted], collect = cfg.deleteCollect and 1 or 0 })
   sm.finishRequest()
   AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
 end
 
 function sm.onConfigCancel()
   local request = sm.finishRequest()
-  if request and not request.req.reviewOnly then
+  if request and not request.req.fromConfigure then
     sm.Debug("config of %s cancelled", request.key)
     AddUITriggeredEvent("SmartMinelayer", "ConfigCancelled", request.callbackObject)
   end
@@ -833,19 +869,25 @@ function sm.showConfigWindow()
   })
   for col = 1, numTabCols do tabT:setColWidth(col, sideBarWidth, false) end
   local tabRow = tabT:addRow("sm_tabs", { fixed = true })
+  local dirty = cfg.configure and sm.isDirty(cfg)
   for i = 1, #slotList + (showAddTab and 1 or 0) do
     local isAdd = i > #slotList
+    local locked = dirty and i ~= activeTab
     tabRow[i]:createButton({
-      active        = true,
+      active        = not locked,
       width         = sideBarWidth,
       height        = sideBarWidth,
       bgColor       = (activeTab == i) and Color["row_background_selected"] or Color["row_background_unselectable"],
-      mouseOverText = isAdd and ReadText(PAGE, 30) or (ReadText(PAGE, 1) .. " " .. i),
+      mouseOverText = locked and ReadText(PAGE, 34) or (isAdd and ReadText(PAGE, 30) or (ReadText(PAGE, 1) .. " " .. i)),
       scaling       = false,
-    }):setIcon(isAdd and "sml_tab_icon_add" or ("sml_tab_icon_" .. i), { color = Color["icon_normal"] })
+    }):setIcon(isAdd and "sml_tab_icon_add" or ("sml_tab_icon_" .. i), { color = locked and Color["icon_inactive"] or Color["icon_normal"] })
     tabRow[i].handlers.onClick = function()
-      cfg.activeTab = i
-      cfg.deleteArmedTab = nil
+      if i == cfg.activeTab then return end
+      if cfg.configure then
+        sm.loadSlot(cfg, i)
+      else
+        cfg.activeTab = i
+      end
       sm.showConfigWindow()
     end
   end
@@ -1026,43 +1068,69 @@ function sm.showConfigWindow()
   r = t:addRow(true, { fixed = true })
   r[1]:createText(ReadText(PAGE, 720), { halign = "left", mouseOverText = ReadText(PAGE, 721) })
   r[2]:createCheckBox(cfg.restockNpc, { active = isEditingTab, width = rowH, height = rowH, mouseOverText = ReadText(PAGE, 721) })
-  r[2].handlers.onClick = function(_, checked) cfg.restockNpc = checked end
+  r[2].handlers.onClick = function(_, checked)
+    cfg.restockNpc = checked
+    if cfg.configure then sm.showConfigWindow() end
+  end
   r = t:addRow(false, { fixed = true, bgColor = Color["row_background_unselectable"] })
   r[1]:createText(ReadText(PAGE, 350), { halign = "left" })
   r[2]:setColSpan(2):createText(itemCount and tostring(itemCount) or "---", { halign = "left" })
 
   local tooMany = isEditingTab and itemCount > config.maxItemsPerSlot
-  if cfg.slotLimitReached then message(t, string.format(tostring(ReadText(PAGE, 10017)), config.maxSlots)) end
   if isEditingTab and #wareOptions == 0 then message(t, ReadText(PAGE, 10007)) end
   if tooMany then message(t, string.format(tostring(ReadText(PAGE, 10019)), itemCount, config.maxItemsPerSlot)) end
   t:addEmptyRow(rowH / 2)
 
-  -- *** buttons ***
-  local bt = sm.configFrame:addTable(12, {
-    tabOrder = 3, x = Helper.borderSize, y = t.properties.y + t:getFullHeight() + Helper.borderSize,
+  -- *** Configure on a saved slot: the Delete box, and once it is ticked the Collect box ***
+  local editsSaved = cfg.configure and cfg.slotIds[activeTab] ~= nil
+  local armed = editsSaved and cfg.deleteArmedTab == activeTab
+  local btnY = t.properties.y + t:getFullHeight() + Helper.borderSize
+  if editsSaved then
+    local dt = sm.configFrame:addTable(4, {
+      tabOrder = 3, x = Helper.borderSize, y = btnY, width = frameW - 2 * Helper.borderSize,
+    })
+    dt:setColWidth(1, rowH, false)
+    dt:setColWidth(3, rowH, false)
+    local delRow = dt:addRow(true, { fixed = true })
+    delRow[1]:createCheckBox(armed, { width = rowH, height = rowH, mouseOverText = ReadText(PAGE, 32) })
+    delRow[1].handlers.onClick = function(_, checked)
+      cfg.deleteArmedTab = checked and activeTab or nil
+      cfg.deleteCollect = false
+      sm.showConfigWindow()
+    end
+    delRow[2]:createText(ReadText(PAGE, 35), { halign = "left", mouseOverText = ReadText(PAGE, 32) })
+    if armed then
+      delRow[3]:createCheckBox(cfg.deleteCollect == true, { width = rowH, height = rowH, mouseOverText = ReadText(PAGE, 37) })
+      delRow[3].handlers.onClick = function(_, checked)
+        cfg.deleteCollect = checked
+        sm.showConfigWindow()
+      end
+      delRow[4]:createText(ReadText(PAGE, 36), { halign = "left", mouseOverText = ReadText(PAGE, 37) })
+    end
+    dt:addEmptyRow(Helper.borderSize)
+    btnY = dt.properties.y + dt:getFullHeight()
+  end
+
+  -- *** buttons: Configure has Confirm, Reset, Delete, Close; an add has Confirm, Cancel ***
+  local btnH = Helper.standardButtonHeight
+  local bt = sm.configFrame:addTable(editsSaved and 4 or 12, {
+    tabOrder = editsSaved and 4 or 3, x = Helper.borderSize, y = btnY,
     width = frameW - 2 * Helper.borderSize,
   })
   local btnRow = bt:addRow("sm_buttons", { fixed = true })
-  local canConfirm = isEditingTab and cfg.wareMacro ~= "" and itemCount > 0 and not tooMany
-  btnRow[1]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = canConfirm }):setText(ReadText(1001, 2821), { halign = "center" })
+  local canConfirm = isEditingTab and cfg.wareMacro ~= "" and itemCount > 0 and not tooMany and (dirty or not cfg.configure)
+  local wide = editsSaved and 1 or 4
+  btnRow[1]:setColSpan(wide):createButton({ height = btnH, active = canConfirm }):setText(ReadText(1001, 2821), { halign = "center" })
   btnRow[1].handlers.onClick = sm.onConfigOK
-  if viewSlot then
-    -- a saved slot's tab: the box unlocks Delete
-    local armed = cfg.deleteArmedTab == activeTab
-    btnRow[5]:createCheckBox(armed, { width = Helper.standardButtonHeight, height = Helper.standardButtonHeight, mouseOverText = ReadText(PAGE, 32) })
-    btnRow[5].handlers.onClick = function(_, checked)
-      cfg.deleteArmedTab = checked and activeTab or nil
-      sm.showConfigWindow()
-    end
-    btnRow[6]:setColSpan(3):createButton({ height = Helper.standardButtonHeight, active = armed, mouseOverText = ReadText(PAGE, 33) }):setText(ReadText(1001, 8931), { halign = "center" })
-    btnRow[6].handlers.onClick = function() sm.onConfigDelete(activeTab) end
-  elseif cfg.originalValues then
-    btnRow[5]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = isEditingTab }):setText(ReadText(PAGE, 31), { halign = "center" })
-    btnRow[5].handlers.onClick = sm.onConfigReset
+  if editsSaved then
+    btnRow[2]:createButton({ height = btnH, active = dirty }):setText(ReadText(PAGE, 31), { halign = "center" })
+    btnRow[2].handlers.onClick = sm.onConfigReset
+    btnRow[3]:createButton({ height = btnH, active = armed, mouseOverText = ReadText(PAGE, cfg.deleteCollect and 38 or 33) }):setText(ReadText(1001, 8931), { halign = "center" })
+    btnRow[3].handlers.onClick = function() sm.onConfigDelete(activeTab) end
   end
-  local cancelText = (cfg.reviewOnly or cfg.slotLimitReached) and ReadText(1001, 2670) or ReadText(1001, 64)
-  btnRow[9]:setColSpan(4):createButton({ height = Helper.standardButtonHeight }):setText(cancelText, { halign = "center" })
-  btnRow[9].handlers.onClick = sm.onConfigCancel
+  local closeCol = editsSaved and 4 or 9
+  btnRow[closeCol]:setColSpan(wide):createButton({ height = btnH }):setText(ReadText(1001, cfg.configure and 2670 or 64), { halign = "center" })
+  btnRow[closeCol].handlers.onClick = sm.onConfigCancel
   bt:addEmptyRow(Helper.borderSize)
 
   local frameH = bt.properties.y + bt:getFullHeight() + Helper.borderSize

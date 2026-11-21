@@ -10,8 +10,9 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 - **Active while you are away**: the mines detonate on enemy ships while you are far from the field, where the game otherwise leaves them inert. A mine reaches as far as its trigger range, a tracking mine as far as it follows a target.
 - **Automatic refill**: when a slot's losses reach its replacement threshold, the ship flies out and lays the missing items again.
 - **Own restock**: when the ship runs out of items, it buys them on its own. It looks for your own supply ships and stations first, free of charge, near its sector before farther away. With **Restock at Other Factions' Stations** it may also buy at other factions' stations, at their price and only as many as you can pay for.
+- **Pattern changes**: items on points the changed pattern keeps stay where they are; the ship collects the others and lays them on the new points. Collected items it does not lay again go back to a station that builds them: as materials to your own station, or, with **Restock at Other Factions' Stations**, for its build price to another faction's station.
 - **Experience for kills**: when the mines or laser towers of the ship or its wingmen destroy an enemy ship, the pilot and service crew of the ship and of every wingman gain experience, as they would from the game's attack order.
-- **Wingmen**: ships assigned to the minelayer with the **Assist** order lay, refill and restock the same fields together with it.
+- **Wingmen**: ships assigned to the minelayer with the **Assist** order lay, refill, restock and collect the same fields together with it.
 - **Waiting**: between refills the ship docks at the nearest station in the field's sector that lets it, or waits in open space a few kilometres off the field's edge.
 
 ## Limitations
@@ -20,7 +21,6 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 - One kind of item per ship: once the order holds a mine or laser tower, the window keeps it. To lay another kind, give the ship a new order.
 - Only friend/foe mines: any other mine could hit the minelayer itself while it lays the field.
 - While you are away, a mine hits the first enemy ship within its reach; there is no hit chance.
-- When you change a slot's pattern, the items already laid for it stay in space but are no longer refilled.
 - A restock that fails five times in a row stops the order with a message. A trip cut short by your own edit of the order or by another order does not count.
 - The extension patches two game AI scripts, `order.assist.xml` and `interrupt.attacked.xml`, and one mission script, `notifications.xml`. The patches are small, but another mod that patches or replaces the same scripts can still conflict with it.
 
@@ -66,25 +66,63 @@ In **Maintenance** set the **Replacement Threshold**: the share of a slot's item
 
 ![Configuration window](docs/images/config_window.png)
 
-Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose **Add Minelayer Position**; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its **Behaviour** adds no slot. The tab of a saved slot shows **Delete** in place of **Reset**: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced. Deleting the last slot clears the order's target too; the ship stands by until **Add Minelayer Position** gives it a new one.
+Confirm, and the ship flies to the field and lays it.
 
-A few fields on the map, one slot each:
-
-![Three concentric circles of 54 Friend/Foe Mines](docs/images/map_concentric_circles.png)
-
-![Two concentric hexagons of 54 Friend/Foe Mines](docs/images/map_hexagons.png)
-
-![A sphere of 62 Friend/Foe Mines](docs/images/map_sphere.png)
-
-![A filled cube inside a hollow one, 53 Friend/Foe Mines, seen from above](docs/images/map_cube.png)
-
-To look at a ship's slots, right-click it with no other object selected and choose **Configure Smart Minelayer** under **Orders**. If the window of its first slot was closed without a slot, the same item opens it again.
+To change or delete a ship's slots, right-click it with no other object selected and choose **Configure Smart Minelayer** under **Orders**.
 
 ![Context menu: Configure Smart Minelayer](docs/images/context_menu.png)
 
+The window has one tab per slot, and the tab you are on can be changed. **Confirm** saves that slot, **Reset** brings back its saved values, **Close** leaves all slots as they are. While a tab has changes, the other tabs stay inactive until you confirm or reset.
+
+![One saved slot](docs/images/window_configure.png)
+
+For another field, select the ship, right-click a spot in space, a station or a gate and choose **Add Minelayer Position**. It is offered while the ship has at least one confirmed slot and fewer than nine; the first slot always comes from the **Behaviour** panel.
+
+![Context menu: Add Minelayer Position](docs/images/context_add_position.png)
+
+The window opens with a new tab beside the saved ones, and the map marks the new field; up to nine slots, one tab each. The saved tabs are read-only here: **Configure Smart Minelayer** changes or deletes them. A target that already has a slot gets one more. **Cancel** drops the new slot again. A new target in its **Behaviour** adds no slot.
+
+![A new slot beside the saved one](docs/images/window_add_slot.png)
+
+![Adding a second slot next to a field being laid](docs/images/map_add_slot.png)
+
+After **Confirm**, **Configure Smart Minelayer** shows both slots, one tab each.
+
+![Two saved slots, the second one open](docs/images/window_two_slots.png)
+
+**Delete** removes the slot of the tab you are on: tick **Unlock Delete** above the buttons first. Then **Collect Items** appears beside it: ticked, the ship and its wingmen collect the slot's items, and those they do not lay again go back to a station as after a pattern change; the window no longer shows the slot, but it stays with the ship until its last item is collected. Left unticked, the items stay in space and are no longer replaced.
+
+![Delete unlocked](docs/images/window_delete.png)
+
+Deleting the last slot clears the order's target too: the ship and its wingmen collect the items if asked, then the ship stands by. **Configure Smart Minelayer** stays inactive; while items are still being collected its tooltip says so. Set a **Target Position** or **Target Object** in its **Behaviour** and confirm, and the window of the first slot opens again.
+
+![Configure Smart Minelayer inactive without slots](docs/images/context_menu_no_slots.png)
+
+![Behaviour: standing by without a target](docs/images/behaviour_standby.png)
+
+When the window of the first slot is closed without a slot, the order fails with a note; **Configure Smart Minelayer** opens the window again.
+
+![Failed Behaviour after a cancelled first slot](docs/images/behaviour_failed.png)
+
+Two fields on the map, each beside its slot:
+
+![A sphere of 62 Laser Towers around an accelerator](docs/images/map_sphere_towers.png)
+
+![A cube of 98 Friend/Foe Mines around a jump gate](docs/images/map_cube_mines.png)
+
+One minelayer with two slots in the same sector, one tab each:
+
+![The first slot: five parallel hexagons of 135 Laser Towers at an accelerator, the second slot's field around a defence platform on the right](docs/images/map_one_ship_overview.png)
+
+![The second slot: four concentric circles of 72 Laser Towers around a defence platform](docs/images/map_one_ship_circles.png)
+
+Parallel layers stack copies of a flat shape:
+
+![Five parallel hexagons of 135 Laser Towers at an accelerator](docs/images/map_gate_layers.png)
+
 ## Options
 
-An options page is available via the `Extension Options` menu. **Keep Slots of a Destroyed Minelayer** sets how many game hours (0 to 24, default 4) the slots of a minelayer destroyed without wingmen are kept before they are dropped; its friend/foe mines keep working either way. **Debug Level** sets the detail of the extension's log.
+An options page is available via the `Extension Options` menu. **Keep Slots of a Destroyed Minelayer** shows how many game hours (1 by default) the slots of a minelayer destroyed without wingmen are kept before they are dropped; its friend/foe mines keep working either way. The slider is inactive in this version. **Debug Level** sets the detail of the extension's log.
 
 ![Options](docs/images/options.png)
 

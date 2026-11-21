@@ -14,6 +14,11 @@
             <t id="31">Reset</t>
             <t id="32">Unlock Delete for this slot</t>
             <t id="33">Delete this slot. Its laid items stay in space and are no longer replaced.</t>
+            <t id="34">Confirm or reset the changes on this slot first.</t>
+            <t id="35">Unlock Delete</t>
+            <t id="36">Collect Items</t>
+            <t id="37">The ship and its wingmen collect the items laid for this slot. Those not laid again go back to a station that builds them: as materials to your own station, or for its build price to another faction's station when Restock at Other Factions' Stations is on.</t>
+            <t id="38">Delete this slot. Its laid items are collected.</t>
 
             <!-- config window sections -->
             <t id="100">Target</t>
@@ -74,14 +79,14 @@
             <!-- messages -->
             <t id="10007">No item of this type is available for this ship.</t>
             <t id="10008">Cannot reach the target sector: all routes are blocked by the military blacklist.</t>
-            <t id="10009">No slot configured: its window was closed. Right-click the ship and choose Configure Smart Minelayer to open it again.</t>
+            <t id="10009">No slot configured. Configure Smart Minelayer reopens the window.</t>
             <t id="10014">No deployment positions configured.</t>
             <t id="10015">Cannot restock after 5 attempts: no own station or supply ship, nor an allowed station of another faction, could provide it, or there were not enough credits.</t>
             <t id="10016">Configure Smart Minelayer</t>
-            <t id="10017">All %s slots are in use. Pick the target of an existing slot to change it.</t>
             <t id="10019">Too many items: %s, at most %s per slot.</t>
             <t id="10020">Add Minelayer Position</t>
-            <t id="10021">No slots. Select the ship, right-click a spot in space, a station or a gate and choose Add Minelayer Position.</t>
+            <t id="10021">No slots and no target. Set a Target Position or Target Object in the ship's Behaviour and confirm.</t>
+            <t id="10022">Collecting the items of a deleted slot. For a new slot, set a Target Position or Target Object in the ship's Behaviour.</t>
 
             <!-- options menu -->
             <t id="90800">Slots</t>

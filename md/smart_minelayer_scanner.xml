@@ -67,7 +67,7 @@
               <include_actions ref="SML_ScannerParams" />
               <set_value name="$slots" exact="player.entity.$SmartMinelayer.$slots" />
               <!-- an existence check: 0 equals null -->
-              <set_value name="$ttl" exact="(if player.entity.$SmartMinelayerConfig? and player.entity.$SmartMinelayerConfig.$lostTtl? then player.entity.$SmartMinelayerConfig.$lostTtl else 4) * 1h" />
+              <set_value name="$ttl" exact="(if player.entity.$SmartMinelayerConfig? and player.entity.$SmartMinelayerConfig.$lostTtl? then player.entity.$SmartMinelayerConfig.$lostTtl else 1) * 1h" />
               <set_value name="$due" exact="[]" />
               <set_value name="$sweepDue" exact="[]" />
 
@@ -109,6 +109,22 @@
                   <remove_value name="$candidates" />
                   <remove_value name="$candidate" />
                 </do_elseif>
+                <!-- items to collect whose ship is gone or off the order: its mines stay watched, anything else goes -->
+                <do_elseif value="@$e.$collect">
+                  <set_value name="$collector" exact="false" />
+                  <do_if value="@$e.$ship.isoperational and @$e.$ship.assignedaipilot.exists">
+                    <set_value name="$collector" exact="$e.$ship.assignedaipilot.$SmartMinelayerSlotIds?" />
+                  </do_if>
+                  <do_if value="not $collector">
+                    <debug_text text="'SmartMinelayer: scanner: %s no longer collects %s, %s items left in space'.[@$e.$ship.debugname, $e.$uid, $e.$items.keys.count]" chance="$debugChance" />
+                    <remove_value name="$e.$collect" />
+                    <remove_value name="$e.$inFlight" />
+                    <do_if value="not $e.$scan?">
+                      <remove_value name="$slots.{$key}" />
+                    </do_if>
+                  </do_if>
+                  <remove_value name="$collector" />
+                </do_elseif>
                 <do_if value="$slots.{$key}?">
                   <do_if value="@$e.$nextSweep le player.age">
                     <append_to_list name="$sweepDue" exact="$key" />
@@ -139,7 +155,7 @@
                   </do_if>
                 </do_for_each>
                 <do_if value="not $e.$config? and $e.$items.keys.count == 0">
-                  <debug_text text="'SmartMinelayer: scanner: mines-only slot %s has no mines left, removed'.[$e.$uid]" chance="$debugChance" />
+                  <debug_text text="'SmartMinelayer: scanner: slot %s without a layout has no items left, removed'.[$e.$uid]" chance="$debugChance" />
                   <remove_value name="$slots.{$key}" />
                 </do_if>
                 <do_else>

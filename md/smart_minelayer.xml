@@ -19,7 +19,7 @@
 
     <library name="Ensure_Config" purpose="include_actions">
       <actions>
-        <set_value name="$cfg" exact="table[$debugLevel = 'none', $restockNpc = 0, $lostTtl = 4]" />
+        <set_value name="$cfg" exact="table[$debugLevel = 'none', $restockNpc = 0, $lostTtl = 1]" />
         <do_if value="@player.entity.$SmartMinelayerConfig == null">
           <set_value name="player.entity.$SmartMinelayerConfig" exact="$cfg" />
         </do_if>
@@ -54,11 +54,10 @@
 
         <cue name="Register_Menu" instantiate="true" version="1">
           <conditions>
-            <event_cue_signalled cue="@md.Simple_Menu_API.Reloaded" />
-            <check_value value="@md.Options_Helper.Add_Dropdown.exists" />
+            <event_cue_signalled cue="md.Options_Helper.Reloaded" />
           </conditions>
           <actions>
-            <signal_cue_instantly cue="md.Simple_Menu_API.Register_Options_Menu"
+            <signal_cue_instantly cue="md.Options_Helper.Register"
               param="table[
                 $id      = 'smart_minelayer_options_menu',
                 $columns = 12,
@@ -84,8 +83,11 @@
               <param name="max" value="24" />
               <param name="step" value="1" />
               <param name="text" value="{1972092417, 90810}" />
+              <param name="textColor" value="'Color.text_inactive'" />
               <param name="mouseOverText" value="{1972092417, 90811}" />
               <param name="suffix" value="' h'" />
+              <!-- inactive until a lost slot can be recovered -->
+              <param name="readOnly" value="true" />
               <param name="colSpan" value="6" />
               <param name="textColSpan" value="6" />
               <param name="data" value="$cfg" />
