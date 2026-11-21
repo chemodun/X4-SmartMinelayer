@@ -10,8 +10,9 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [*] [b]Active while you are away[/b]: the mines detonate on enemy ships while you are far from the field, where the game otherwise leaves them inert. A mine reaches as far as its trigger range, a tracking mine as far as it follows a target.
 [*] [b]Automatic refill[/b]: when a slot's losses reach its replacement threshold, the ship flies out and lays the missing items again.
 [*] [b]Own restock[/b]: when the ship runs out of items, it buys them on its own. It looks for your own supply ships and stations first, free of charge, near its sector before farther away. With [b]Restock at Other Factions' Stations[/b] it may also buy at other factions' stations, at their price and only as many as you can pay for.
+[*] [b]Pattern changes[/b]: items on points the changed pattern keeps stay where they are; the ship collects the others and lays them on the new points. Collected items it does not lay again go back to a station that builds them: as materials to your own station, or, with [b]Restock at Other Factions' Stations[/b], for its build price to another faction's station.
 [*] [b]Experience for kills[/b]: when the mines or laser towers of the ship or its wingmen destroy an enemy ship, the pilot and service crew of the ship and of every wingman gain experience, as they would from the game's attack order.
-[*] [b]Wingmen[/b]: ships assigned to the minelayer with the [b]Assist[/b] order lay, refill and restock the same fields together with it.
+[*] [b]Wingmen[/b]: ships assigned to the minelayer with the [b]Assist[/b] order lay, refill, restock and collect the same fields together with it.
 [*] [b]Waiting[/b]: between refills the ship docks at the nearest station in the field's sector that lets it, or waits in open space a few kilometres off the field's edge.
 [/list]
 [size=130][u]Limitations[/u][/size]
@@ -20,7 +21,6 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [*] One kind of item per ship: once the order holds a mine or laser tower, the window keeps it. To lay another kind, give the ship a new order.
 [*] Only friend/foe mines: any other mine could hit the minelayer itself while it lays the field.
 [*] While you are away, a mine hits the first enemy ship within its reach; there is no hit chance.
-[*] When you change a slot's pattern, the items already laid for it stay in space but are no longer refilled.
 [*] A restock that fails five times in a row stops the order with a message. A trip cut short by your own edit of the order or by another order does not count.
 [*] The extension patches two game AI scripts, [b]order.assist.xml[/b] and [b]interrupt.attacked.xml[/b], and one mission script, [b]notifications.xml[/b]. The patches are small, but another mod that patches or replaces the same scripts can still conflict with it.
 [/list]
@@ -76,25 +76,63 @@ In [b]Maintenance[/b] set the [b]Replacement Threshold[/b]: the share of a slot'
 
 [spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/config_window.png[/img][/spoiler]
 
-Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose [b]Add Minelayer Position[/b]; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its [b]Behaviour[/b] adds no slot. The tab of a saved slot shows [b]Delete[/b] in place of [b]Reset[/b]: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced. Deleting the last slot clears the order's target too; the ship stands by until [b]Add Minelayer Position[/b] gives it a new one.
+Confirm, and the ship flies to the field and lays it.
 
-A few fields on the map, one slot each:
-
-[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_concentric_circles.png[/img][/spoiler]
-
-[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_hexagons.png[/img][/spoiler]
-
-[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_sphere.png[/img][/spoiler]
-
-[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_cube.png[/img][/spoiler]
-
-To look at a ship's slots, right-click it with no other object selected and choose [b]Configure Smart Minelayer[/b] under [b]Orders[/b]. If the window of its first slot was closed without a slot, the same item opens it again.
+To change or delete a ship's slots, right-click it with no other object selected and choose [b]Configure Smart Minelayer[/b] under [b]Orders[/b].
 
 [spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_menu.png[/img][/spoiler]
 
+The window has one tab per slot, and the tab you are on can be changed. [b]Confirm[/b] saves that slot, [b]Reset[/b] brings back its saved values, [b]Close[/b] leaves all slots as they are. While a tab has changes, the other tabs stay inactive until you confirm or reset.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/window_configure.png[/img][/spoiler]
+
+For another field, select the ship, right-click a spot in space, a station or a gate and choose [b]Add Minelayer Position[/b]. It is offered while the ship has at least one confirmed slot and fewer than nine; the first slot always comes from the [b]Behaviour[/b] panel.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_add_position.png[/img][/spoiler]
+
+The window opens with a new tab beside the saved ones, and the map marks the new field; up to nine slots, one tab each. The saved tabs are read-only here: [b]Configure Smart Minelayer[/b] changes or deletes them. A target that already has a slot gets one more. [b]Cancel[/b] drops the new slot again. A new target in its [b]Behaviour[/b] adds no slot.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/window_add_slot.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_add_slot.png[/img][/spoiler]
+
+After [b]Confirm[/b], [b]Configure Smart Minelayer[/b] shows both slots, one tab each.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/window_two_slots.png[/img][/spoiler]
+
+[b]Delete[/b] removes the slot of the tab you are on: tick [b]Unlock Delete[/b] above the buttons first. Then [b]Collect Items[/b] appears beside it: ticked, the ship and its wingmen collect the slot's items, and those they do not lay again go back to a station as after a pattern change; the window no longer shows the slot, but it stays with the ship until its last item is collected. Left unticked, the items stay in space and are no longer replaced.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/window_delete.png[/img][/spoiler]
+
+Deleting the last slot clears the order's target too: the ship and its wingmen collect the items if asked, then the ship stands by. [b]Configure Smart Minelayer[/b] stays inactive; while items are still being collected its tooltip says so. Set a [b]Target Position[/b] or [b]Target Object[/b] in its [b]Behaviour[/b] and confirm, and the window of the first slot opens again.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_menu_no_slots.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/behaviour_standby.png[/img][/spoiler]
+
+When the window of the first slot is closed without a slot, the order fails with a note; [b]Configure Smart Minelayer[/b] opens the window again.
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/behaviour_failed.png[/img][/spoiler]
+
+Two fields on the map, each beside its slot:
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_sphere_towers.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_cube_mines.png[/img][/spoiler]
+
+One minelayer with two slots in the same sector, one tab each:
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_one_ship_overview.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_one_ship_circles.png[/img][/spoiler]
+
+Parallel layers stack copies of a flat shape:
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_gate_layers.png[/img][/spoiler]
+
 [size=130][u]Options[/u][/size]
 
-An options page is available via the [b]Extension Options[/b] menu. [b]Keep Slots of a Destroyed Minelayer[/b] sets how many game hours (0 to 24, default 4) the slots of a minelayer destroyed without wingmen are kept before they are dropped; its friend/foe mines keep working either way. [b]Debug Level[/b] sets the detail of the extension's log.
+An options page is available via the [b]Extension Options[/b] menu. [b]Keep Slots of a Destroyed Minelayer[/b] shows how many game hours (1 by default) the slots of a minelayer destroyed without wingmen are kept before they are dropped; its friend/foe mines keep working either way. The slider is inactive in this version. [b]Debug Level[/b] sets the detail of the extension's log.
 
 [spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/options.png[/img][/spoiler]
 
