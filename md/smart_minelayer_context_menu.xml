@@ -1,57 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mdscript name="SmartMinelayerContextMenu" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
-  <!-- "Configure Smart Minelayer" on a ship whose default order is Smart Minelayer: opens its slots for review. -->
+  <!-- "Configure Smart Minelayer" on a ship whose default order is Smart Minelayer, nothing else selected: opens its slots for review.
+       "Add Minelayer Position" for selected minelayers on a spot in space, a station or a gate: adds a slot there. -->
   <cues>
-    <cue name="Main" version="1">
-      <actions>
-        <set_value name="$uixInteractMenuPresent" exact="false" />
-      </actions>
+    <cue name="Main" version="3">
       <cues>
-
-        <cue name="SML_On_Reload" instantiate="true">
-          <conditions>
-            <check_any>
-              <event_cue_signalled cue="md.Interact_Menu_API.Reloaded" />
-              <event_game_loaded />
-            </check_any>
-          </conditions>
-          <actions>
-            <set_value name="$uixInteractMenuPresent" exact="false" />
-            <raise_lua_event name="'Interact_Menu_API.Existence_Query'" />
-            <reset_cue cue="this" />
-          </actions>
-        </cue>
-
-        <cue name="SML_On_UIX_Present" instantiate="true">
-          <conditions>
-            <event_ui_triggered screen="'UIX_Interact_Menu_Present'" />
-          </conditions>
-          <actions>
-            <set_value name="$uixInteractMenuPresent" exact="true" />
-            <raise_lua_event name="'Interact_Menu_API.Add_Custom_Actions_Group_Id'" param="'smart_minelayer_group'" />
-            <raise_lua_event name="'Interact_Menu_API.Add_Custom_Actions_Group_Text'" param="{1972092417, 1}" />
-            <reset_cue cue="this" />
-          </actions>
-        </cue>
 
         <cue name="SML_Add_Menu_Actions" instantiate="true">
           <conditions>
             <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
             <check_value value="@event.param.$object.exists" />
             <check_value value="@event.param.$object.defaultorder.id == 'SmartMinelayer'" />
+            <check_value value="not @event.param.$selectedotherobjects.count and not @event.param.$selectedplayerdeployables.count" />
           </conditions>
           <actions>
-            <set_value name="$section" exact="if @$uixInteractMenuPresent then 'smart_minelayer_group' else 'interaction'" />
-            <signal_cue_instantly
-              cue="md.Interact_Menu_API.Add_Action"
-              param="table[
-                $id       = 'smart_minelayer_configure',
-                $section  = $section,
-                $text     = {1972092417, 10016},
-                $active   = @event.param.$object.pilot.$SmartMinelayerSlotList.count gt 0,
-                $callback = SML_Configure_Callback,
-              ]" />
-            <remove_value name="$section" />
+            <!-- the ship itself and the occupied ship (listed by default) do not count as other objects -->
+            <set_value name="$otherShips" exact="0" />
+            <do_for_each name="$selShip" in="@event.param.$selectedplayerships">
+              <do_if value="$selShip != event.param.$object and $selShip != player.occupiedship">
+                <set_value name="$otherShips" operation="add" />
+              </do_if>
+            </do_for_each>
+            <remove_value name="$selShip" />
+            <do_if value="$otherShips == 0">
+              <signal_cue_instantly
+                cue="md.Interact_Menu_API.Add_Action"
+                param="table[
+                  $id       = 'smart_minelayer_configure',
+                  $section  = 'main_orders',
+                  $icon     = 'order_smartminelayer',
+                  $text     = {1972092417, 10016},
+                  $active   = @event.param.$object.pilot.$SmartMinelayerSlotList.count gt 0,
+                  $callback = SML_Configure_Callback,
+                ]" />
+            </do_if>
+            <remove_value name="$otherShips" />
           </actions>
         </cue>
 
@@ -74,6 +57,90 @@
               <debug_text text="'SmartMinelayer: context menu opened the config window for %s'.[$configShip.debugname]" chance="$debugChance" />
             </do_if>
             <remove_value name="$configShip" />
+            <include_actions ref="md.SmartMinelayer.ClearDebugChances" />
+          </actions>
+        </cue>
+
+        <!-- in: event.param of the menu; out: $addShips, and $addSector + $addPos (+ $addObject) when the target fits -->
+        <library name="ResolveAddTarget" purpose="include_actions">
+          <actions>
+            <set_value name="$addShips" exact="[]" />
+            <do_for_each name="$addShip" in="@event.param.$selectedplayerships">
+              <do_if value="@$addShip.defaultorder.id == 'SmartMinelayer' and $addShip != player.occupiedship">
+                <append_to_list name="$addShips" exact="$addShip" />
+              </do_if>
+            </do_for_each>
+            <remove_value name="$addShip" />
+            <set_value name="$addSector" exact="null" />
+            <set_value name="$addPos" exact="null" />
+            <set_value name="$addObject" exact="null" />
+            <set_value name="$addTarget" exact="@event.param.$object" />
+            <do_if value="@$addTarget.isclass.station or @$addTarget.isclass.gate">
+              <set_value name="$addObject" exact="$addTarget" />
+              <set_value name="$addSector" exact="$addTarget.sector" />
+              <create_position name="$addPos" space="$addSector" object="$addTarget" />
+            </do_if>
+            <do_elseif value="(not @$addTarget.exists or $addTarget.isclass.space) and @event.param.$offsetcomponent.exists and @event.param.$offset">
+              <set_value name="$addSector" exact="if event.param.$offsetcomponent.isclass.sector then event.param.$offsetcomponent else event.param.$offsetcomponent.sector" />
+              <do_if value="@$addSector.isclass.sector">
+                <create_position name="$addPos" space="$addSector" object="event.param.$offsetcomponent" value="event.param.$offset" />
+              </do_if>
+              <do_else>
+                <set_value name="$addSector" exact="null" />
+              </do_else>
+            </do_elseif>
+            <remove_value name="$addTarget" />
+          </actions>
+        </library>
+
+        <cue name="SML_Add_Position_Actions" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
+            <check_value value="@event.param.$selectedplayerships.count gt 0" />
+          </conditions>
+          <actions>
+            <include_actions ref="ResolveAddTarget" />
+            <do_if value="$addShips.count gt 0 and @$addSector.exists">
+              <signal_cue_instantly
+                cue="md.Interact_Menu_API.Add_Action"
+                param="table[
+                  $id       = 'smart_minelayer_add_position',
+                  $section  = 'selected_orders',
+                  $icon     = 'order_smartminelayer',
+                  $text     = {1972092417, 10020},
+                  $callback = SML_Add_Position_Callback,
+                ]" />
+            </do_if>
+            <remove_value name="$addShips" />
+            <remove_value name="$addSector" />
+            <remove_value name="$addPos" />
+            <remove_value name="$addObject" />
+          </actions>
+        </cue>
+
+        <!-- a new default order with targetAdd on: it opens the config window for the target -->
+        <cue name="SML_Add_Position_Callback" instantiate="true">
+          <conditions>
+            <event_cue_signalled />
+          </conditions>
+          <actions>
+            <include_actions ref="md.SmartMinelayer.ReadDebugChances" />
+            <include_actions ref="ResolveAddTarget" />
+            <do_if value="@$addSector.exists">
+              <do_for_each name="$addShip" in="$addShips">
+                <create_order id="'SmartMinelayer'" object="$addShip" default="true">
+                  <param name="targetPosition" value="[$addSector, $addPos]" />
+                  <param name="targetObject" value="$addObject" />
+                  <param name="targetAdd" value="true" />
+                </create_order>
+                <debug_text text="'SmartMinelayer: context menu added a position for %s in %s at %s, object %s'.[$addShip.debugname, $addSector.debugname, $addPos, @$addObject.debugname]" chance="$debugChance" />
+              </do_for_each>
+              <remove_value name="$addShip" />
+            </do_if>
+            <remove_value name="$addShips" />
+            <remove_value name="$addSector" />
+            <remove_value name="$addPos" />
+            <remove_value name="$addObject" />
             <include_actions ref="md.SmartMinelayer.ClearDebugChances" />
           </actions>
         </cue>

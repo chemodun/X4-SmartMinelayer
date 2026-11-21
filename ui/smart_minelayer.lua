@@ -627,11 +627,28 @@ function sm.openRequest(request)
   sm.showConfigWindow()
 end
 
+-- a cleared frame sends no mouse-out, so the map would keep object picking off (as vanilla's closeContextMenu)
+function sm.clearConfigFrame()
+  local menu = sm.menu
+  local frame = menu.frames and menu.frames[config.frameLayer]
+  local over = menu.currentMouseOverTable
+  if over and frame and frame ~= 0 and IsValidWidgetElement(frame) then
+    for _, t in ipairs({ GetChildren(frame) }) do
+      if t == over then
+        menu.currentMouseOverTable = nil
+        menu.picking = true
+        break
+      end
+    end
+  end
+  sm.configFrame = nil
+  Helper.clearFrame(menu, config.frameLayer)
+end
+
 -- the frame is gone (map closed, or a request replaced); the request stays queued and is shown again
 function sm.dropWindow()
   if sm.configFrame then
-    sm.configFrame = nil
-    Helper.clearFrame(sm.menu, config.frameLayer)
+    sm.clearConfigFrame()
   end
   local request = sm.requests[1]
   if request then
@@ -707,6 +724,31 @@ function sm.onConfigOK()
   AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
 end
 
+-- drops a saved slot; an edit open in the window is dropped with it
+function sm.onConfigDelete(deleted)
+  local request = sm.requests[1]
+  local cfg = request and request.cfg
+  if not (cfg and cfg.slotList[deleted] and #cfg.slotList > 1) then return end
+  local slots, all, stats = {}, {}, {}
+  for i, slot in ipairs(cfg.slotList) do
+    if i ~= deleted then
+      local list = sm.oldSlotPositions(cfg, i)
+      slot.positions = nil
+      slots[#slots + 1] = slot
+      -- from: the slot's index before the delete, so the order keeps its laid items
+      stats[#slots] = { firstPosIdx = #all + 1, size = #list, threshold = slot.threshold or config.defaults.threshold, sector = slot.sector, keep = 1, from = i }
+      for _, p in ipairs(list) do all[#all + 1] = p end
+    end
+  end
+  sm.Debug("slot %d of %s deleted: %d slots, %d positions left", deleted, request.key, #slots, #all)
+
+  SetNPCBlackboard(request.handle, config.slotsVar, slots)
+  SetNPCBlackboard(request.handle, config.slotStatsVar, stats)
+  SetNPCBlackboard(request.handle, config.positionsVar, all)
+  sm.finishRequest()
+  AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
+end
+
 function sm.onConfigCancel()
   local request = sm.finishRequest()
   if request and not request.req.reviewOnly then
@@ -761,8 +803,7 @@ function sm.showConfigWindow()
   local menu = sm.menu
   if not cfg then return end
   if sm.configFrame then
-    sm.configFrame = nil
-    Helper.clearFrame(menu, config.frameLayer)
+    sm.clearConfigFrame()
   end
 
   local frameW = menu.infoTableWidth
@@ -805,6 +846,7 @@ function sm.showConfigWindow()
     }):setIcon(isAdd and "sml_tab_icon_add" or ("sml_tab_icon_" .. i), { color = Color["icon_normal"] })
     tabRow[i].handlers.onClick = function()
       cfg.activeTab = i
+      cfg.deleteArmedTab = nil
       sm.showConfigWindow()
     end
   end
@@ -1005,7 +1047,17 @@ function sm.showConfigWindow()
   local canConfirm = isEditingTab and cfg.wareMacro ~= "" and itemCount > 0 and not tooMany
   btnRow[1]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = canConfirm }):setText(ReadText(1001, 2821), { halign = "center" })
   btnRow[1].handlers.onClick = sm.onConfigOK
-  if cfg.originalValues then
+  if viewSlot and #slotList > 1 then
+    -- a saved slot's tab: the box unlocks Delete
+    local armed = cfg.deleteArmedTab == activeTab
+    btnRow[5]:createCheckBox(armed, { width = Helper.standardButtonHeight, height = Helper.standardButtonHeight, mouseOverText = ReadText(PAGE, 32) })
+    btnRow[5].handlers.onClick = function(_, checked)
+      cfg.deleteArmedTab = checked and activeTab or nil
+      sm.showConfigWindow()
+    end
+    btnRow[6]:setColSpan(3):createButton({ height = Helper.standardButtonHeight, active = armed, mouseOverText = ReadText(PAGE, 33) }):setText(ReadText(1001, 8931), { halign = "center" })
+    btnRow[6].handlers.onClick = function() sm.onConfigDelete(activeTab) end
+  elseif cfg.originalValues then
     btnRow[5]:setColSpan(4):createButton({ height = Helper.standardButtonHeight, active = isEditingTab }):setText(ReadText(PAGE, 31), { halign = "center" })
     btnRow[5].handlers.onClick = sm.onConfigReset
   end

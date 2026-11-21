@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="3">
+<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="4">
   <!-- Lays mines or laser towers on the positions the config window computed and refills each slot past its loss threshold. -->
   <order id="SmartMinelayer" name="{1972092417, 1}" description="{1972092417, 2}" category="combat" infinite="true" allowinloop="false">
     <params>
@@ -11,7 +11,7 @@
         <input_param name="class" value="[class.station, class.gate]" />
         <input_param name="context" value="$targetPosition.{1}" />
       </param>
-      <param name="targetAdd" type="bool" default="false" text="{1972092417, 30}" comment="Open the config window for the target, then reset" />
+      <param name="targetAdd" type="internal" default="false" comment="Set by the context action: open the config window for the target, then reset" />
     </params>
     <requires>
       <match class="class.ship_xl" negate="true" />
@@ -257,12 +257,7 @@
       <set_order_syncpoint_reached order="this.assignedcontrolled.order" />
 
       <do_if value="$targetAdd">
-        <do_if value="@this.assignedcontrolled.sector != $targetSector and this.assignedcontrolled.sector.gatedistance.{$targetSector}.{blacklistgroup.military}.{this.assignedcontrolled} lt 0">
-          <debug_text text="'SmartMinelayer: %s cannot reach %s past the military blacklist'.[this.assignedcontrolled.debugname, $targetSector.debugname]" filter="error" />
-          <set_order_failed order="this.assignedcontrolled.order" text="{1972092417, 10008}" />
-          <resume label="failedOrder" />
-        </do_if>
-        <resume label="requestConfig" />
+        <resume label="addSlot" />
       </do_if>
 
       <label name="checkState" />
@@ -279,17 +274,21 @@
       <set_value name="$syncCaller" exact="'check'" />
       <resume label="findMissingPositions" />
 
-      <!-- the order was recreated: lay the slots kept on the pilot -->
+      <!-- the order was recreated: lay the slots kept on the pilot; none kept means the first slot -->
       <label name="loadPersisted" />
       <do_if value="not @this.$SmartMinelayerPositionsList.count or not @this.$SmartMinelayerSlotStats.count or not @this.$SmartMinelayerDeployableMacro or @this.$SmartMinelayerDeployableMacro == ''">
-        <debug_text text="'SmartMinelayer: %s has no slots configured'.[this.assignedcontrolled.debugname]" filter="error" />
-        <set_order_failed order="this.assignedcontrolled.order" text="{1972092417, 10014}" />
-        <resume label="failedOrder" />
+        <debug_text text="'SmartMinelayer: %s has no slots configured, opening the config window for the first one'.[this.assignedcontrolled.debugname]" chance="$debugChance" />
+        <resume label="addSlot" />
       </do_if>
       <set_value name="$fromPersisted" exact="true" />
       <resume label="applyConfig" />
 
-      <label name="requestConfig" />
+      <label name="addSlot" />
+      <do_if value="@this.assignedcontrolled.sector != $targetSector and this.assignedcontrolled.sector.gatedistance.{$targetSector}.{blacklistgroup.military}.{this.assignedcontrolled} lt 0">
+        <debug_text text="'SmartMinelayer: %s cannot reach %s past the military blacklist'.[this.assignedcontrolled.debugname, $targetSector.debugname]" filter="error" />
+        <set_order_failed order="this.assignedcontrolled.order" text="{1972092417, 10008}" />
+        <resume label="failedOrder" />
+      </do_if>
       <set_value name="$phase" exact="'config'" />
       <set_command_action commandaction="commandaction.calculating" />
       <set_value name="$possibleStations" exact="[]" />
@@ -363,6 +362,15 @@
       <set_value name="$phase" exact="'apply'" />
       <include_interrupt_actions ref="bindState" />
       <set_value name="$newStats" exact="this.$SmartMinelayerSlotStats" />
+      <!-- old slot index to new: a delete shifts the later slots and names their old index in $from -->
+      <set_value name="$keptFrom" exact="table[]" />
+      <do_all exact="$newStats.count" counter="$si">
+        <do_if value="@$newStats.{$si}.$keep == 1">
+          <set_value name="$fromSi" exact="if @$newStats.{$si}.$from then $newStats.{$si}.$from else $si" />
+          <set_value name="$keptFrom.{$fromSi}" exact="$si" />
+        </do_if>
+      </do_all>
+      <remove_value name="$fromSi" />
       <set_value name="$newMap" exact="table[]" />
       <set_value name="$released" exact="0" />
       <do_for_each name="$item" in="$deployedItems.list">
@@ -372,8 +380,8 @@
           <set_value name="$oldIdx" exact="$objectsToPositions.{$itemKey}" />
           <do_if value="$slotByPosIdx.{$oldIdx}?">
             <set_value name="$si" exact="$slotByPosIdx.{$oldIdx}" />
-            <do_if value="$si le $newStats.count and $si le $slotStats.count and @$newStats.{$si}.$keep == 1">
-              <set_value name="$newIdx" exact="$newStats.{$si}.$firstPosIdx + $oldIdx - $slotStats.{$si}.$firstPosIdx" />
+            <do_if value="$keptFrom.{$si}? and $si le $slotStats.count">
+              <set_value name="$newIdx" exact="$newStats.{$keptFrom.{$si}}.$firstPosIdx + $oldIdx - $slotStats.{$si}.$firstPosIdx" />
             </do_if>
             <remove_value name="$si" />
           </do_if>
@@ -390,6 +398,12 @@
       <remove_value name="$item" />
       <remove_value name="$itemKey" />
       <remove_value name="$newIdx" />
+      <remove_value name="$keptFrom" />
+      <!-- scanner fields are keyed by slot index: new launches get new fields, apart from released or shifted mines -->
+      <do_if value="$released gt 0 or $newStats.count lt $slotStats.count">
+        <set_value name="$state.$fieldBase" exact="'$%s_%s'.[this.assignedcontrolled.idcode, (player.age * 1000)i]" />
+        <debug_text text="'SmartMinelayer: %s new scanner field base %s'.[this.assignedcontrolled.debugname, $state.$fieldBase]" chance="$debugChance" />
+      </do_if>
 
       <set_value name="$byPos" exact="table[]" />
       <set_value name="$pending" exact="table[]" />

@@ -12,6 +12,8 @@
             <t id="20">Target Object \(station or gate\)</t>
             <t id="30">Add Position</t>
             <t id="31">Reset</t>
+            <t id="32">Unlock Delete for this slot</t>
+            <t id="33">Delete this slot. Its laid items stay in space and are no longer replaced.</t>
 
             <!-- config window sections -->
             <t id="100">Target</t>
@@ -25,8 +27,6 @@
             <!-- config window rows -->
             <t id="110">Target Sector</t>
             <t id="210">Item</t>
-            <t id="220">Active While You Are Away</t>
-            <t id="221">On: the mines also detonate on enemies while you are far away, where the game leaves them inert; only friend/foe mines can be chosen. Off: any mine can be chosen, and it acts only while you are nearby.</t>
             <t id="310">Shape</t>
             <t id="320">Radius</t>
             <t id="330">Density</t>
@@ -75,11 +75,12 @@
             <t id="10007">No item of this type is available for this ship.</t>
             <t id="10008">Cannot reach the target sector: all routes are blocked by the military blacklist.</t>
             <t id="10009">Deployment cancelled by user.</t>
-            <t id="10014">No deployment positions configured. Turn on 'Add Position' to set them up.</t>
+            <t id="10014">No deployment positions configured.</t>
             <t id="10015">Cannot restock after 5 attempts: no own station or supply ship, nor an allowed station of another faction, could provide it, or there were not enough credits.</t>
             <t id="10016">Configure Smart Minelayer</t>
             <t id="10017">All %s slots are in use. Pick the target of an existing slot to change it.</t>
             <t id="10019">Too many items: %s, at most %s per slot.</t>
+            <t id="10020">Add Minelayer Position</t>
 
             <!-- options menu -->
             <t id="90900">Debug</t>
