@@ -6,8 +6,8 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [list]
 [*] [b]Patterns[/b]: circle, square, hexagon, sphere, cube or the X4 logo, around a point in space or around a station or gate, with a radius, a density and a plane orientation. Concentric shapes, parallel layers and an offset from the target build larger fields from one pattern.
 [*] [b]Up to nine fields per ship[/b]: each field, called a slot, has its own target, sector, pattern and item count (up to 1000 items). Changing one slot leaves the items of the others in place.
-[*] [b]Mines or laser towers[/b]: any mine or laser tower the ship can carry. Package mines that release a whole cluster at once, such as the Cluster Mine, are left out.
-[*] [b]Active While You Are Away[/b]: with this option, friend/foe mines detonate on enemy ships while you are far from the field, where the game otherwise leaves them inert. A mine reaches as far as its trigger range, a tracking mine as far as it follows a target.
+[*] [b]Friend/foe mines or laser towers[/b]: any friend/foe mine or laser tower the ship can carry. Package mines that release a whole cluster at once, such as the Cluster Mine, are left out.
+[*] [b]Active while you are away[/b]: the mines detonate on enemy ships while you are far from the field, where the game otherwise leaves them inert. A mine reaches as far as its trigger range, a tracking mine as far as it follows a target.
 [*] [b]Automatic refill[/b]: when a slot's losses reach its replacement threshold, the ship flies out and lays the missing items again.
 [*] [b]Own restock[/b]: when the ship runs out of items, it buys them on its own. It looks for your own supply ships and stations first, free of charge, near its sector before farther away. With [b]Restock at Other Factions' Stations[/b] it may also buy at other factions' stations, at their price and only as many as you can pay for.
 [*] [b]Experience for kills[/b]: when the mines or laser towers of the ship or its wingmen destroy an enemy ship, the pilot and service crew of the ship and of every wingman gain experience, as they would from the game's attack order.
@@ -18,7 +18,7 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [list]
 [*] S, M and L ships only: XL ships are not offered the order.
 [*] One kind of item per ship: once the order holds a mine or laser tower, the window keeps it. To lay another kind, give the ship a new order.
-[*] Without [b]Active While You Are Away[/b], mines behave as in the game: they act only while you are near the field. Only friend/foe mines can be chosen with the option on.
+[*] Only friend/foe mines: any other mine could hit the minelayer itself while it lays the field.
 [*] While you are away, a mine hits the first enemy ship within its reach; there is no hit chance.
 [*] When you change a slot's pattern, the items already laid for it stay in space but are no longer refilled.
 [*] A restock that fails five times in a row stops the order with a message. A trip cut short by your own edit of the order or by another order does not count.
@@ -64,11 +64,11 @@ Or you can do it via the Nexus Mods - [url=https://www.nexusmods.com/x4foundatio
 
 [size=130][u]Usage[/u][/size]
 
-Select a ship that carries mines or laser towers, open its [b]Behaviour[/b] on the map and choose [b]Smart Minelayer[/b]. Set [b]Target Position[/b] to a point in space, or [b]Target Object[/b] to a station or gate, turn on [b]Add Position[/b] and confirm. The configuration window opens on the map.
+Select a ship that carries mines or laser towers, open its [b]Behaviour[/b] on the map and choose [b]Smart Minelayer[/b]. Set [b]Target Position[/b] to a point in space, or [b]Target Object[/b] to a station or gate, and confirm. The configuration window for the first slot opens on the map.
 
 [spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/behaviour.png[/img][/spoiler]
 
-In the [b]Deployable[/b] section pick the type, [b]Mines[/b] or [b]Laser Towers[/b], and the item. With [b]Mines[/b], [b]Active While You Are Away[/b] is on by default and offers only friend/foe mines; turn it off to choose any mine.
+In the [b]Deployable[/b] section pick the type, [b]Mines[/b] or [b]Laser Towers[/b], and the item.
 
 In [b]Shape[/b], [b]Concentric Shapes[/b], [b]Parallel Layers[/b] and [b]Offset[/b] design the field. The window shows how many items the slot needs.
 
@@ -76,11 +76,19 @@ In [b]Maintenance[/b] set the [b]Replacement Threshold[/b]: the share of a slot'
 
 [spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/config_window.png[/img][/spoiler]
 
-Confirm, and the ship flies to the field and lays it. For another field, set a new target and turn on [b]Add Position[/b] again; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change.
+Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose [b]Add Minelayer Position[/b]; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its [b]Behaviour[/b] adds no slot. With two or more slots, the tab of a saved slot shows [b]Delete[/b] in place of [b]Reset[/b]: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced.
 
-[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_x4_logo.png[/img][/spoiler]
+A few fields on the map, one slot each:
 
-To look at a ship's slots, choose [b]Configure Smart Minelayer[/b] in its context menu; with UI Extensions installed it is under [b]Smart Minelayer[/b] in [b]Custom Actions[/b].
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_concentric_circles.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_hexagons.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_sphere.png[/img][/spoiler]
+
+[spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_cube.png[/img][/spoiler]
+
+To look at a ship's slots, right-click it with no other object selected and choose [b]Configure Smart Minelayer[/b] under [b]Orders[/b].
 
 [spoiler][img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_menu.png[/img][/spoiler]
 
