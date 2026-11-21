@@ -76,7 +76,7 @@ In [b]Maintenance[/b] set the [b]Replacement Threshold[/b]: the share of a slot'
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/config_window.png[/img]
 
-Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose [b]Add Minelayer Position[/b]; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its [b]Behaviour[/b] adds no slot. With two or more slots, the tab of a saved slot shows [b]Delete[/b] in place of [b]Reset[/b]: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced.
+Confirm, and the ship flies to the field and lays it. For another field, select the ship, right-click a spot in space, a station or a gate and choose [b]Add Minelayer Position[/b]; up to nine slots, one tab each in the window. Picking the target of an existing slot opens that slot for a change. A new target in its [b]Behaviour[/b] adds no slot. The tab of a saved slot shows [b]Delete[/b] in place of [b]Reset[/b]: tick the box beside it first. The deleted slot's items stay in space and are no longer replaced. Deleting the last slot clears the order's target too; the ship stands by until [b]Add Minelayer Position[/b] gives it a new one.
 
 A few fields on the map, one slot each:
 
@@ -88,13 +88,13 @@ A few fields on the map, one slot each:
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/map_cube.png[/img]
 
-To look at a ship's slots, right-click it with no other object selected and choose [b]Configure Smart Minelayer[/b] under [b]Orders[/b].
+To look at a ship's slots, right-click it with no other object selected and choose [b]Configure Smart Minelayer[/b] under [b]Orders[/b]. If the window of its first slot was closed without a slot, the same item opens it again.
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_menu.png[/img]
 
 [size=3][u][b]Options[/b][/u][/size]
 
-An options page is available via the [b]Extension Options[/b] menu: it sets the debug level of the extension's log.
+An options page is available via the [b]Extension Options[/b] menu. [b]Keep Slots of a Destroyed Minelayer[/b] sets how many game hours (0 to 24, default 4) the slots of a minelayer destroyed without wingmen are kept before they are dropped; its friend/foe mines keep working either way. [b]Debug Level[/b] sets the detail of the extension's log.
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/options.png[/img]
 
