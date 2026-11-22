@@ -1101,7 +1101,10 @@
       <remove_value name="$shipPos" />
       <remove_value name="$standRatio" />
       <!-- in high attention the exact move can stall a few metres short, or circle a blocked spot -->
-      <set_value name="$exactMoveTime" exact="(this.assignedcontrolled.distanceto.[$placingSector, $standPosition] / [this.assignedcontrolled.unboostedmaxspeed, 1m].max * 3)s + 30s" />
+      <!-- unboostedmaxspeed is 9.00 only; 8.00's maxspeed is the unboosted speed -->
+      <set_value name="$exactMoveSpeed" exact="if @this.assignedcontrolled.unboostedmaxspeed then this.assignedcontrolled.unboostedmaxspeed else this.assignedcontrolled.maxspeed" />
+      <set_value name="$exactMoveTime" exact="(this.assignedcontrolled.distanceto.[$placingSector, $standPosition] / [$exactMoveSpeed, 1m].max * 3)s + 30s" />
+      <remove_value name="$exactMoveSpeed" />
       <set_value name="$exactMoveEnd" exact="player.age + $exactMoveTime" />
       <move_to object="this.assignedcontrolled" destination="$placingSector" travel="false" boost="false" useblacklist="blacklistgroup.military" uselocalhighways="false" forceposition="true">
         <position value="$standPosition" />
