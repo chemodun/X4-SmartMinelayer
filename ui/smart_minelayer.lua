@@ -692,9 +692,6 @@ function sm.openRequest(request)
   local ship = ConvertIDTo64Bit(request.callbackObject) or 0
   if not request.cfg then
     request.cfg = sm.newConfigState(request)
-    menu.selectedcomponents = {}
-    menu.addSelectedComponent(ship, true, true)
-    menu.setSelectedMapComponents()
   end
   -- the ship goes to the map centre, the window beside it
   if ship ~= 0 then
@@ -721,7 +718,7 @@ function sm.clearConfigFrame()
   Helper.clearFrame(menu, config.frameLayer)
 end
 
--- the frame is gone (map closed, or a request replaced); the request stays queued and is shown again
+-- the frame is gone (a request answered or replaced); a replaced request stays queued and is shown again
 function sm.dropWindow()
   if sm.configFrame then
     sm.clearConfigFrame()
@@ -808,10 +805,14 @@ function sm.onConfigDelete(deleted)
   AddUITriggeredEvent("SmartMinelayer", "ConfigReady", request.callbackObject)
 end
 
+-- kept on the pilot like a confirmed op, so an order that is not running reads it at its restart
 function sm.onConfigCancel()
   local request = sm.finishRequest()
   if request and not request.req.fromConfigure then
     sm.Debug("config of %s cancelled", request.key)
+    if type(GetNPCBlackboard(request.handle, config.requestVar)) == "table" then
+      SetNPCBlackboard(request.handle, config.opVar, { op = "cancel" })
+    end
     AddUITriggeredEvent("SmartMinelayer", "ConfigCancelled", request.callbackObject)
   end
 end
@@ -1172,7 +1173,8 @@ local function hookMap(menu)
   menu.onUpdate = function(...)
     onUpdate(...)
     local request = sm.requests[1]
-    if request and not sm.configFrame and menu.shown and menu.holomap and menu.holomap ~= 0 then
+    -- the plain map only: not while it picks a target or object for something else, nor minimized
+    if request and not sm.configFrame and menu.shown and not menu.mode and not menu.minimized and menu.holomap and menu.holomap ~= 0 then
       local ok, err = pcall(sm.openRequest, request)
       if not ok then
         sm.Error("config window of %s failed: %s", request.key, tostring(err))
@@ -1180,9 +1182,12 @@ local function hookMap(menu)
       end
     end
   end
+  -- closing the map answers every waiting window with Cancel (Close for Configure)
   local cleanup = menu.cleanup
   menu.cleanup = function(...)
-    sm.dropWindow()
+    while sm.requests[1] do
+      sm.onConfigCancel()
+    end
     return cleanup(...)
   end
   -- Escape cancels the window, unless a vanilla context menu is open above it

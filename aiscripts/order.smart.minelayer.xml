@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="6">
+<aiscript name="order.smart.minelayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
   <!-- Lays mines or laser towers on the positions of the ship's slots and refills each slot past its loss threshold.
        Slots live in the common list player.entity.$SmartMinelayer.$slots, keyed by '$' + uid; the pilot lists its uids in tab order. -->
   <order id="SmartMinelayer" name="{1972092417, 1}" description="{1972092417, 2}" category="combat" infinite="true" allowinloop="false">
@@ -402,7 +402,7 @@
     <handler>
       <conditions>
         <event_object_signalled object="this.assignedcontrolled" param="'SmartMinelayer.ConfigCancelled'" />
-        <check_value value="@$phase == 'config'" />
+        <check_value value="@this.$SmartMinelayerConfigOp.$op == 'cancel'" />
       </conditions>
       <actions>
         <debug_text text="'SmartMinelayer: %s config cancelled, slots %s'.[this.assignedcontrolled.debugname, @this.$SmartMinelayerSlotIds.count]" chance="$debugChance" />
@@ -539,6 +539,10 @@
     <actions>
       <set_order_syncpoint_reached order="this.assignedcontrolled.order" />
 
+      <!-- a window answer that came while another order ran -->
+      <do_if value="this.$SmartMinelayerConfigOp? and not @this.assignedcontrolled.commander">
+        <resume label="configReady" />
+      </do_if>
       <do_if value="$targetAdd and not @this.assignedcontrolled.commander">
         <resume label="addSlot" />
       </do_if>
@@ -547,10 +551,6 @@
       <include_interrupt_actions ref="bindState" />
       <do_if value="@this.assignedcontrolled.commander">
         <resume label="deployLoop" />
-      </do_if>
-      <!-- a window answer that came while another order ran -->
-      <do_if value="this.$SmartMinelayerConfigOp?">
-        <resume label="configReady" />
       </do_if>
       <do_if value="$slotIds.count == 0 and not @$targetObject.exists and not @$targetPosition.{1}.exists">
         <!-- a deleted slot's items to collect, or collected items to return, come first -->
@@ -619,7 +619,7 @@
       <remove_value name="$requestSlots" />
       <debug_text text="'SmartMinelayer: %s requested the config window for %s, slots %s'.[this.assignedcontrolled.debugname, $targetSector.debugname, $slotIds.count]" chance="$debugChance" />
 
-      <!-- re-raised so a request lost to a load or to a closed map comes back; Lua ignores a request it already holds -->
+      <!-- re-raised so a request lost to a load comes back; Lua ignores a request it already holds -->
       <label name="waitConfig" />
       <raise_lua_event name="'SmartMinelayer.Configure'" param="this" />
       <wait exact="5s" />
@@ -627,6 +627,7 @@
 
       <label name="configCancelled" />
       <remove_value name="this.$SmartMinelayerConfigRequestData" />
+      <remove_value name="this.$SmartMinelayerConfigOp" />
       <do_if value="@this.$SmartMinelayerSlotIds.count gt 0">
         <set_value name="$targetAdd" exact="false" />
         <set_value name="$phase" exact="'restart'" />
@@ -634,11 +635,10 @@
         <wait exact="200ms" comment="edit_order_param restarts the order" />
         <resume label="checkState" />
       </do_if>
-      <debug_text text="'SmartMinelayer: %s config cancelled with no slots'.[this.assignedcontrolled.debugname]" filter="error" />
-      <set_order_failed order="this.assignedcontrolled.order" text="{1972092417, 10009}" />
-      <resume label="failedOrder" />
+      <debug_text text="'SmartMinelayer: %s config cancelled with no slots, target dropped'.[this.assignedcontrolled.debugname]" chance="$debugChance" />
+      <resume label="allDeleted" />
 
-      <!-- the window's answer is one op on the pilot: add, edit or delete a slot -->
+      <!-- the window's answer is one op on the pilot: add, edit or delete a slot, or cancel -->
       <label name="configReady" />
       <do_if value="@$collectObj">
         <include_interrupt_actions ref="releaseCollect" />
@@ -651,6 +651,11 @@
       <set_value name="$op" exact="@this.$SmartMinelayerConfigOp" />
       <remove_value name="this.$SmartMinelayerConfigOp" />
       <set_value name="$opName" exact="if typeof $op == datatype.table then @$op.$op else null" />
+      <do_if value="$opName == 'cancel'">
+        <remove_value name="$op" />
+        <remove_value name="$opName" />
+        <resume label="configCancelled" />
+      </do_if>
       <set_value name="$opIdx" exact="if @$op.$uid then $slotIds.indexof.{$op.$uid} else 0" />
       <set_value name="$applyEntry" exact="null" />
       <set_value name="$allDeleted" exact="false" />
@@ -761,7 +766,7 @@
       <set_value name="$syncCaller" exact="'config'" />
       <resume label="findMissingPositions" />
 
-      <!-- the last slot is gone: the order drops its target and stands by -->
+      <!-- the last slot is gone, or the first was cancelled: the order drops its target and stands by -->
       <label name="allDeleted" />
       <include_interrupt_actions ref="pushToWingmen" />
       <set_value name="$targetAdd" exact="false" />
@@ -821,7 +826,7 @@
       <do_if value="$collectFound and this.assignedcontrolled.ammostorage.deployable.free lt 1 and this.assignedcontrolled.ammostorage.deployable.capacity gt 0 and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age)">
         <include_interrupt_actions ref="claimCollect" />
         <set_value name="$freeRoom" exact="true" />
-        <debug_text text="'SmartMinelayer: %s has no free deployable storage, %s aboard, %s of it claimed items to collect make room for'.[this.assignedcontrolled.debugname, this.assignedcontrolled.ammostorage.deployable.count, $freeRoomClaims]" chance="$debugChance" />
+        <debug_text text="'SmartMinelayer: %s has no free deployable storage (%s aboard), needs room for %s claimed items to collect'.[this.assignedcontrolled.debugname, this.assignedcontrolled.ammostorage.deployable.count, $freeRoomClaims]" chance="$debugChance" />
         <resume label="returnSurplus" />
       </do_if>
       <do_if value="not $collectFound and this.$SmartMinelayerSurplus? and this.$SmartMinelayerSurplus le 0">
@@ -1303,7 +1308,7 @@
         <debug_text text="'SmartMinelayer: %s returns %s of %s to %s (%s), %s Cr each'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, if $retStation.isplayerowned then 'own' else 'other faction', $retUnitPrice / 1Cr]" chance="$debugChance" />
       </do_else>
       <do_if value="@this.assignedcontrolled.dock.container != $retStation">
-        <run_script name="'order.dock'" sinceversion="6">
+        <run_script name="'order.dock'">
           <param name="destination" value="$retStation" />
         </run_script>
       </do_if>
@@ -1314,7 +1319,7 @@
       </do_if>
       <set_command command="command.dockat" param="$retStation" />
       <set_command_action commandaction="commandaction.waitingtodock" />
-      <wait exact="10s" sinceversion="6" />
+      <wait exact="10s" />
       <!-- the station's storage or money may have changed on the way -->
       <set_value name="$retLoc" exact="$retStation" />
       <set_value name="$retAmount" exact="[if @$freeRoom then $freeRoomClaims else @this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />

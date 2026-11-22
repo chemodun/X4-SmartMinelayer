@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spanish -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Minador inteligente</t>
+            <t id="2">Despliega un patrón de minas o torretas láser y repone automáticamente los artículos destruidos.</t>
+
+            <!-- order params -->
+            <t id="10">Posición de destino</t>
+            <t id="20">Objeto de destino</t>
+            <t id="30">Añadir posición</t>
+            <t id="31">Reiniciar</t>
+            <t id="32">Desbloquear la eliminación de esta ranura</t>
+            <t id="33">Eliminar esta ranura. Sus artículos colocados permanecen en el espacio y ya no se reponen.</t>
+            <t id="34">Primero confirma o reinicia los cambios de esta ranura.</t>
+            <t id="35">Desbloquear eliminación</t>
+            <t id="36">Recoger artículos</t>
+            <t id="37">La nave y sus escoltas recogen los artículos colocados para esta ranura. Los que no se vuelven a colocar regresan a una estación que los fabrica: como materiales a tu propia estación, o por su precio de construcción a la estación de otra facción cuando Reabastecer en estaciones de otras facciones está activado.</t>
+            <t id="38">Eliminar esta ranura. Sus artículos colocados se recogen.</t>
+
+            <!-- config window sections -->
+            <t id="100">Objetivo</t>
+            <t id="200">Desplegable</t>
+            <t id="300">Forma</t>
+            <t id="400">Formas concéntricas</t>
+            <t id="500">Capas paralelas</t>
+            <t id="600">Desplazamiento</t>
+            <t id="700">Mantenimiento</t>
+
+            <!-- config window rows -->
+            <t id="110">Sector de destino</t>
+            <t id="210">Artículo</t>
+            <t id="310">Forma</t>
+            <t id="320">Radio</t>
+            <t id="330">Densidad</t>
+            <t id="340">Orientación del plano</t>
+            <t id="350">Artículos en la ranura</t>
+            <t id="410">Cantidad</t>
+            <t id="420">Separación</t>
+            <t id="510">Cantidad</t>
+            <t id="520">Separación</t>
+            <t id="610">Dirección</t>
+            <t id="620">Distancia</t>
+            <t id="710">Umbral de reposición \(%\)</t>
+            <t id="720">Reabastecer en estaciones de otras facciones</t>
+            <t id="721">Desactivado: la nave se reabastece solo en tus propias estaciones y naves de reabastecimiento, sin coste. Activado: también puede comprar en estaciones de otras facciones, a su precio.</t>
+
+            <!-- shapes -->
+            <t id="311">Círculo</t>
+            <t id="312">Cuadrado</t>
+            <t id="313">Hexágono</t>
+            <t id="314">Esfera</t>
+            <t id="315">Cubo</t>
+            <t id="316">Logotipo de X4</t>
+
+            <!-- densities -->
+            <t id="331">Muy baja</t>
+            <t id="332">Baja</t>
+            <t id="333">Media</t>
+            <t id="334">Alta</t>
+            <t id="335">Muy alta</t>
+
+            <!-- plane orientations -->
+            <t id="341">Eclíptica XZ</t>
+            <t id="342">Plano X-Y</t>
+            <t id="343">Plano Z-Y</t>
+
+            <!-- offset directions -->
+            <t id="611">Ninguno \(centrado\)</t>
+            <t id="612">Delante</t>
+            <t id="613">Detrás</t>
+            <t id="614">Derecha</t>
+            <t id="615">Izquierda</t>
+            <t id="616">Arriba</t>
+            <t id="617">Abajo</t>
+
+            <!-- messages -->
+            <t id="10007">No hay ningún artículo de este tipo disponible para esta nave.</t>
+            <t id="10008">No se puede llegar al sector de destino: todas las rutas están bloqueadas por la lista negra militar.</t>
+            <t id="10014">No hay posiciones de despliegue configuradas.</t>
+            <t id="10015">No se puede reabastecer tras 5 intentos: ninguna estación o nave de reabastecimiento propia, ni una estación permitida de otra facción, pudo proporcionarlo, o no había suficientes créditos.</t>
+            <t id="10016">Configurar Minador inteligente</t>
+            <t id="10019">Demasiados artículos: %s, como máximo %s por ranura.</t>
+            <t id="10020">Añadir posición de minador</t>
+            <t id="10021">No hay ranuras ni objetivo. Establece una Posición de destino u Objeto de destino en la Actitud de la nave y confirma.</t>
+            <t id="10022">Recogiendo los artículos de una ranura eliminada. Para una nueva ranura, establece una Posición de destino u Objeto de destino en la Actitud de la nave.</t>
+
+            <!-- options menu -->
+            <t id="90800">Ranuras</t>
+            <t id="90810">Conservar las ranuras de un minador destruido</t>
+            <t id="90811">Horas de juego durante las que se conservan las ranuras de un minador destruido sin escoltas antes de descartarlas; 0 las descarta de inmediato. Sus minas amigo/enemigo siguen funcionando en cualquier caso.</t>
+            <t id="90900">Depuración</t>
+            <t id="90910">Nivel de depuración</t>
+            <t id="90911">Ninguno</t>
+            <t id="90912">Depuración</t>
+            <t id="90913">Rastreo</t>
+        </page>
+    </add>
+</diff>

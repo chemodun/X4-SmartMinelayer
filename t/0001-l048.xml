@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Polish -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Inteligentny stawiacz min</t>
+            <t id="2">Rozmieść wzór z min lub wież laserowych i automatycznie zastępuj zniszczone przedmioty.</t>
+
+            <!-- order params -->
+            <t id="10">Pozycja docelowa</t>
+            <t id="20">Obiekt docelowy</t>
+            <t id="30">Dodaj pozycję</t>
+            <t id="31">Zresetuj</t>
+            <t id="32">Odblokuj usuwanie tego slotu</t>
+            <t id="33">Usuń ten slot. Jego rozmieszczone przedmioty pozostaną w przestrzeni i nie będą już zastępowane.</t>
+            <t id="34">Najpierw potwierdź lub zresetuj zmiany w tym slocie.</t>
+            <t id="35">Odblokuj usuwanie</t>
+            <t id="36">Zbierz przedmioty</t>
+            <t id="37">Statek i jego skrzydłowi zbierają przedmioty rozmieszczone dla tego slotu. Te, które nie zostaną ponownie rozmieszczone, wracają do stacji, która je produkuje: jako materiały do twojej własnej stacji albo za cenę budowy do stacji innej frakcji, gdy włączona jest opcja Uzupełniaj zapasy na stacjach innych frakcji.</t>
+            <t id="38">Usuń ten slot. Jego rozmieszczone przedmioty zostaną zebrane.</t>
+
+            <!-- config window sections -->
+            <t id="100">Cel</t>
+            <t id="200">Urządzenie</t>
+            <t id="300">Kształt</t>
+            <t id="400">Kształty koncentryczne</t>
+            <t id="500">Warstwy równoległe</t>
+            <t id="600">Przesunięcie</t>
+            <t id="700">Konserwacja</t>
+
+            <!-- config window rows -->
+            <t id="110">Sektor docelowy</t>
+            <t id="210">Przedmiot</t>
+            <t id="310">Kształt</t>
+            <t id="320">Promień</t>
+            <t id="330">Gęstość</t>
+            <t id="340">Orientacja płaszczyzny</t>
+            <t id="350">Przedmioty w slocie</t>
+            <t id="410">Liczba</t>
+            <t id="420">Odstęp</t>
+            <t id="510">Liczba</t>
+            <t id="520">Odstęp</t>
+            <t id="610">Kierunek</t>
+            <t id="620">Odległość</t>
+            <t id="710">Próg zastępowania \(%\)</t>
+            <t id="720">Uzupełniaj zapasy na stacjach innych frakcji</t>
+            <t id="721">Wyłączone: statek uzupełnia zapasy tylko na twoich własnych stacjach i statkach zaopatrzeniowych, bezpłatnie. Włączone: może też kupować na stacjach innych frakcji, po ich cenach.</t>
+
+            <!-- shapes -->
+            <t id="311">Okrąg</t>
+            <t id="312">Kwadrat</t>
+            <t id="313">Sześciokąt</t>
+            <t id="314">Kula</t>
+            <t id="315">Sześcian</t>
+            <t id="316">Logo X4</t>
+
+            <!-- densities -->
+            <t id="331">Bardzo niska</t>
+            <t id="332">Niska</t>
+            <t id="333">Średnia</t>
+            <t id="334">Wysoka</t>
+            <t id="335">Bardzo wysoka</t>
+
+            <!-- plane orientations -->
+            <t id="341">Ekliptyka XZ</t>
+            <t id="342">Płaszczyzna X-Y</t>
+            <t id="343">Płaszczyzna Z-Y</t>
+
+            <!-- offset directions -->
+            <t id="611">Brak \(na środku\)</t>
+            <t id="612">Do przodu</t>
+            <t id="613">Do tyłu</t>
+            <t id="614">W prawo</t>
+            <t id="615">W lewo</t>
+            <t id="616">W górę</t>
+            <t id="617">W dół</t>
+
+            <!-- messages -->
+            <t id="10007">Dla tego statku nie jest dostępny żaden przedmiot tego typu.</t>
+            <t id="10008">Nie można dotrzeć do sektora docelowego: wszystkie trasy są zablokowane przez wojskową czarną listę.</t>
+            <t id="10014">Nie skonfigurowano żadnych pozycji rozmieszczenia.</t>
+            <t id="10015">Nie można uzupełnić zapasów po 5 próbach: żadna własna stacja ani statek zaopatrzeniowy, ani dozwolona stacja innej frakcji nie mogły dostarczyć przedmiotu albo zabrakło kredytów.</t>
+            <t id="10016">Konfiguruj Inteligentny stawiacz min</t>
+            <t id="10019">Zbyt wiele przedmiotów: %s, najwyżej %s na slot.</t>
+            <t id="10020">Dodaj pozycję stawiacza min</t>
+            <t id="10021">Brak slotów i brak celu. Ustaw Pozycję docelową lub Obiekt docelowy w zakładce Zachowanie statku i potwierdź.</t>
+            <t id="10022">Zbieranie przedmiotów usuniętego slotu. Aby dodać nowy slot, ustaw Pozycję docelową lub Obiekt docelowy w zakładce Zachowanie statku.</t>
+
+            <!-- options menu -->
+            <t id="90800">Sloty</t>
+            <t id="90810">Zachowaj sloty zniszczonego stawiacza min</t>
+            <t id="90811">Godziny gry, przez które sloty stawiacza min zniszczonego bez skrzydłowych są zachowywane, zanim zostaną porzucone; 0 porzuca je od razu. Jego miny przyjaciel/wróg działają dalej w każdym przypadku.</t>
+            <t id="90900">Debugowanie</t>
+            <t id="90910">Poziom debugowania</t>
+            <t id="90911">Brak</t>
+            <t id="90912">Debugowanie</t>
+            <t id="90913">Ślad</t>
+        </page>
+    </add>
+</diff>

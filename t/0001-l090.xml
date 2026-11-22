@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Turkish -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Akıllı Mayın Döşeyici</t>
+            <t id="2">Mayınlardan veya lazer kulelerinden bir desen konuşlandırın ve tahrip edilen öğeleri otomatik olarak yenileyin.</t>
+
+            <!-- order params -->
+            <t id="10">Hedef Konum</t>
+            <t id="20">Hedef Nesne</t>
+            <t id="30">Konum Ekle</t>
+            <t id="31">Sıfırla</t>
+            <t id="32">Bu yuvanın silme kilidini aç</t>
+            <t id="33">Bu yuvayı siler. Konuşlandırılmış öğeleri uzayda kalır ve artık yenilenmez.</t>
+            <t id="34">Önce bu yuvadaki değişiklikleri onaylayın veya sıfırlayın.</t>
+            <t id="35">Silme Kilidini Aç</t>
+            <t id="36">Öğeleri Topla</t>
+            <t id="37">Gemi ve kanat elemanları bu yuva için konuşlandırılan öğeleri toplar. Yeniden konuşlandırılmayanlar onları üreten bir istasyona geri döner: kendi istasyonunuza malzeme olarak ya da Diğer Fraksiyonların İstasyonlarında İkmal Yap açıkken başka bir fraksiyonun istasyonuna inşaat ücreti karşılığında.</t>
+            <t id="38">Bu yuvayı siler. Konuşlandırılmış öğeleri toplanır.</t>
+
+            <!-- config window sections -->
+            <t id="100">Hedef</t>
+            <t id="200">Konuşlandırılabilir</t>
+            <t id="300">Şekil</t>
+            <t id="400">Eş Merkezli Şekiller</t>
+            <t id="500">Paralel Katmanlar</t>
+            <t id="600">Kaydırma</t>
+            <t id="700">Bakım</t>
+
+            <!-- config window rows -->
+            <t id="110">Hedef Sektör</t>
+            <t id="210">Öğe</t>
+            <t id="310">Şekil</t>
+            <t id="320">Yarıçap</t>
+            <t id="330">Yoğunluk</t>
+            <t id="340">Düzlem Yönü</t>
+            <t id="350">Yuvadaki Öğeler</t>
+            <t id="410">Sayı</t>
+            <t id="420">Aralık</t>
+            <t id="510">Sayı</t>
+            <t id="520">Aralık</t>
+            <t id="610">Yön</t>
+            <t id="620">Mesafe</t>
+            <t id="710">Yenileme Eşiği \(%\)</t>
+            <t id="720">Diğer Fraksiyonların İstasyonlarında İkmal Yap</t>
+            <t id="721">Kapalı: gemi yalnızca kendi istasyonlarınızda ve ikmal gemilerinizde, ücretsiz ikmal yapar. Açık: diğer fraksiyonların istasyonlarından da onların fiyatıyla satın alabilir.</t>
+
+            <!-- shapes -->
+            <t id="311">Halka</t>
+            <t id="312">Kare</t>
+            <t id="313">Altıgen</t>
+            <t id="314">Küre</t>
+            <t id="315">Küp</t>
+            <t id="316">X4 Logosu</t>
+
+            <!-- densities -->
+            <t id="331">Çok Düşük</t>
+            <t id="332">Düşük</t>
+            <t id="333">Orta</t>
+            <t id="334">Yüksek</t>
+            <t id="335">Çok Yüksek</t>
+
+            <!-- plane orientations -->
+            <t id="341">XZ Ekliptiği</t>
+            <t id="342">X-Y Düzlemi</t>
+            <t id="343">Z-Y Düzlemi</t>
+
+            <!-- offset directions -->
+            <t id="611">Yok \(Merkezde\)</t>
+            <t id="612">İleri</t>
+            <t id="613">Geri</t>
+            <t id="614">Sağ</t>
+            <t id="615">Sol</t>
+            <t id="616">Yukarı</t>
+            <t id="617">Aşağı</t>
+
+            <!-- messages -->
+            <t id="10007">Bu gemi için bu türde bir öğe mevcut değil.</t>
+            <t id="10008">Hedef sektöre ulaşılamıyor: tüm rotalar askeri kara liste tarafından engelleniyor.</t>
+            <t id="10014">Yapılandırılmış konuşlandırma konumu yok.</t>
+            <t id="10015">5 denemeden sonra ikmal yapılamadı: ne kendi istasyonunuz ya da ikmal geminiz ne de başka bir fraksiyonun izin verilen bir istasyonu öğeyi sağlayabildi veya yeterli kredit yoktu.</t>
+            <t id="10016">Akıllı Mayın Döşeyiciyi Yapılandır</t>
+            <t id="10019">Çok fazla öğe: %s, yuva başına en fazla %s.</t>
+            <t id="10020">Mayın Döşeyici Konumu Ekle</t>
+            <t id="10021">Yuva ve hedef yok. Geminin Davranış sekmesinde bir Hedef Konum veya Hedef Nesne ayarlayın ve onaylayın.</t>
+            <t id="10022">Silinen bir yuvanın öğeleri toplanıyor. Yeni bir yuva için geminin Davranış sekmesinde bir Hedef Konum veya Hedef Nesne ayarlayın.</t>
+
+            <!-- options menu -->
+            <t id="90800">Yuvalar</t>
+            <t id="90810">Tahrip Edilen Mayın Döşeyicinin Yuvalarını Koru</t>
+            <t id="90811">Kanat elemanları olmadan tahrip edilen bir mayın döşeyicinin yuvalarının bırakılmadan önce korunduğu oyun saati; 0 onları hemen bırakır. Dost/Düşman mayınları her durumda çalışmaya devam eder.</t>
+            <t id="90900">Hata Ayıklama</t>
+            <t id="90910">Hata Ayıklama Seviyesi</t>
+            <t id="90911">Yok</t>
+            <t id="90912">Hata Ayıklama</t>
+            <t id="90913">İzleme</t>
+        </page>
+    </add>
+</diff>

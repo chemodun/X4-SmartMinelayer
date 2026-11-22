@@ -197,7 +197,7 @@
           <conditions>
             <event_player_owned_killed_object />
             <check_value value="@player.entity.$SmartMinelayer.$slots.keys.count gt 0 and @event.param2.isclass.ship" />
-            <check_value value="event.param2.trueowner.relationto.{faction.player} le faction.player.relation.killmilitary.max" />
+            <check_value value="event.param2.trueowner.relationto.{faction.player} le faction.player.relation.enemy.max" />
           </conditions>
           <actions>
             <set_value name="$found" exact="false" />

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Czech -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Chytrá minonoska</t>
+            <t id="2">Rozmístěte vzor min nebo laserových věží a zničené položky se budou automaticky nahrazovat.</t>
+
+            <!-- order params -->
+            <t id="10">Cílová poloha</t>
+            <t id="20">Cílový objekt</t>
+            <t id="30">Přidat pozici</t>
+            <t id="31">Obnovit</t>
+            <t id="32">Odemknout smazání tohoto slotu</t>
+            <t id="33">Smazat tento slot. Jeho vypuštěné položky zůstanou ve vesmíru a už nebudou nahrazovány.</t>
+            <t id="34">Nejprve změny v tomto slotu potvrďte nebo obnovte.</t>
+            <t id="35">Odemknout smazání</t>
+            <t id="36">Sebrat položky</t>
+            <t id="37">Loď a její křídlo seberou položky vypuštěné pro tento slot. Ty, které nebudou znovu vypuštěny, se vrátí na stanici, která je vyrábí: jako materiál na vaši vlastní stanici, nebo za stavební cenu na stanici jiné frakce, když je zapnuta volba Doplňovat zásoby na stanicích jiných frakcí.</t>
+            <t id="38">Smazat tento slot. Jeho vypuštěné položky budou sebrány.</t>
+
+            <!-- config window sections -->
+            <t id="100">Cíl</t>
+            <t id="200">Vybavení</t>
+            <t id="300">Tvar</t>
+            <t id="400">Soustředné tvary</t>
+            <t id="500">Rovnoběžné vrstvy</t>
+            <t id="600">Posun</t>
+            <t id="700">Údržba</t>
+
+            <!-- config window rows -->
+            <t id="110">Cílový sektor</t>
+            <t id="210">Položka</t>
+            <t id="310">Tvar</t>
+            <t id="320">Poloměr</t>
+            <t id="330">Hustota</t>
+            <t id="340">Orientace roviny</t>
+            <t id="350">Položky ve slotu</t>
+            <t id="410">Počet</t>
+            <t id="420">Odstup</t>
+            <t id="510">Počet</t>
+            <t id="520">Odstup</t>
+            <t id="610">Směr</t>
+            <t id="620">Vzdálenost</t>
+            <t id="710">Hranice nahrazení \(%\)</t>
+            <t id="720">Doplňovat zásoby na stanicích jiných frakcí</t>
+            <t id="721">Vypnuto: loď doplňuje zásoby jen na vašich vlastních stanicích a zásobovacích lodích, zdarma. Zapnuto: může nakupovat i na stanicích jiných frakcí, za jejich ceny.</t>
+
+            <!-- shapes -->
+            <t id="311">Kruh</t>
+            <t id="312">Čtverec</t>
+            <t id="313">Šestihran</t>
+            <t id="314">Koule</t>
+            <t id="315">Krychle</t>
+            <t id="316">Logo X4</t>
+
+            <!-- densities -->
+            <t id="331">Velmi nízká</t>
+            <t id="332">Nízká</t>
+            <t id="333">Střední</t>
+            <t id="334">Vysoká</t>
+            <t id="335">Velmi vysoká</t>
+
+            <!-- plane orientations -->
+            <t id="341">Ekliptika XZ</t>
+            <t id="342">Rovina X-Y</t>
+            <t id="343">Rovina Z-Y</t>
+
+            <!-- offset directions -->
+            <t id="611">Žádný \(ve středu\)</t>
+            <t id="612">Vpřed</t>
+            <t id="613">Vzad</t>
+            <t id="614">Vpravo</t>
+            <t id="615">Vlevo</t>
+            <t id="616">Nahoru</t>
+            <t id="617">Dolů</t>
+
+            <!-- messages -->
+            <t id="10007">Pro tuto loď není k dispozici žádná položka tohoto typu.</t>
+            <t id="10008">Cílový sektor je nedosažitelný: všechny trasy blokuje vojenská černá listina.</t>
+            <t id="10014">Nejsou nastaveny žádné pozice pro rozmístění.</t>
+            <t id="10015">Doplnění zásob se nezdařilo ani po 5 pokusech: žádná vlastní stanice ani zásobovací loď ani povolená stanice jiné frakce nemohla položku poskytnout, nebo nebylo dost kreditů.</t>
+            <t id="10016">Konfigurace Chytré minonosky</t>
+            <t id="10019">Příliš mnoho položek: %s, nejvýše %s na slot.</t>
+            <t id="10020">Přidat pozici minonosky</t>
+            <t id="10021">Žádné sloty a žádný cíl. Nastavte Cílovou polohu nebo Cílový objekt na kartě Chování lodi a potvrďte.</t>
+            <t id="10022">Sbírají se položky smazaného slotu. Pro nový slot nastavte Cílovou polohu nebo Cílový objekt na kartě Chování lodi.</t>
+
+            <!-- options menu -->
+            <t id="90800">Sloty</t>
+            <t id="90810">Ponechat sloty zničené minonosky</t>
+            <t id="90811">Počet herních hodin, po které zůstanou sloty minonosky zničené bez křídla zachovány, než budou zahozeny; 0 je zahodí okamžitě. Její miny Přítel/Nepřítel fungují v každém případě dál.</t>
+            <t id="90900">Ladění</t>
+            <t id="90910">Úroveň ladění</t>
+            <t id="90911">Žádná</t>
+            <t id="90912">Ladění</t>
+            <t id="90913">Trasování</t>
+        </page>
+    </add>
+</diff>

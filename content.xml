@@ -4,15 +4,59 @@
   name="Smart Minelayer"
   author="Chem O`Dun"
   version="100"
-  date="2026-03-29"
+  date="2026-11-22"
   save="false"
   sync="false"
-  lastupdate=""
+  lastupdate="1795370165"
   description="Deploy mines or laser towers in geometric patterns and auto-replace destroyed items.">
+  <text language="7"
+    description="Deploy mines or laser towers in geometric patterns and auto-replace destroyed items."></text>
+  <!-- French -->
+  <text language="33"
+    description="Déployez des mines ou des tourelles laser selon des motifs géométriques et remplacez automatiquement les objets détruits."></text>
+  <!-- Spanish -->
+  <text language="34"
+    description="Despliega minas o torretas láser en patrones geométricos y repone automáticamente los artículos destruidos."></text>
+  <!-- Italian -->
+  <text language="39"
+    description="Schiera mine o torrette laser secondo schemi geometrici e sostituisce automaticamente gli oggetti distrutti."></text>
+  <!-- Czech -->
+  <text language="42"
+    description="Rozmístěte miny nebo laserové věže v geometrických vzorech a zničené položky se budou automaticky nahrazovat."></text>
   <!-- English -->
   <text language="44"
     name="Smart Minelayer"
     description="Deploy mines or laser towers in geometric patterns and auto-replace destroyed items." />
+  <!-- Polish -->
+  <text language="48"
+    description="Rozmieszczaj miny lub wieże laserowe w geometrycznych wzorach i automatycznie zastępuj zniszczone przedmioty."></text>
+  <!-- German -->
+  <text language="49"
+    description="Stelle Minen oder Lasertürme in geometrischen Mustern auf und ersetze zerstörte Gegenstände automatisch."></text>
+  <!-- Portuguese -->
+  <text language="55"
+    description="Lança minas ou torres de laser em padrões geométricos e repõe automaticamente os itens destruídos."></text>
+  <!-- Japanese -->
+  <text language="81"
+    description="機雷やレーザータワーを幾何学的なパターンで配備し、破壊されたものを自動的に補充します。"></text>
+  <!-- Korean -->
+  <text language="82"
+    description="기뢰나 레이저 타워를 기하학적 패턴으로 배치하고 파괴된 물건을 자동으로 교체합니다."></text>
+  <!-- Chinese Simplified -->
+  <text language="86"
+    description="以几何阵列部署爆雷或激光塔，并自动替换被摧毁的物品。"></text>
+  <!-- Chinese Traditional -->
+  <text language="88"
+    description="以幾何陣列部署爆雷或雷射塔，並自動替換被摧毀的物品。"></text>
+  <!-- Turkish -->
+  <text language="90"
+    description="Mayınları veya lazer kulelerini geometrik desenlerle konuşlandırın ve tahrip edilen öğeleri otomatik olarak yenileyin."></text>
+  <!-- Bulgarian -->
+  <text language="359"
+    description="Разполагайте мини или лазерни кули в геометрични фигури с автоматична подмяна на унищожените предмети."></text>
+  <!-- Ukrainian -->
+  <text language="380"
+    description="Розміщуйте міни або лазерні вежі геометричними фігурами з автоматичною заміною знищених предметів."></text>
   <dependency version="800"></dependency>
   <dependency id="ws_2042901274" optional="false" name="SirNukes Mod Support APIs" version="195"></dependency>
   <dependency id="ws_3715253556" optional="false" name="Options Helper" version="140"></dependency>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- German -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Intelligenter Minenleger</t>
+            <t id="2">Stelle ein Muster aus Minen oder Lasertürmen auf und ersetze zerstörte Gegenstände automatisch.</t>
+
+            <!-- order params -->
+            <t id="10">Zielposition</t>
+            <t id="20">Zielobjekt</t>
+            <t id="30">Position hinzufügen</t>
+            <t id="31">Zurücksetzen</t>
+            <t id="32">Löschen für diesen Slot entsperren</t>
+            <t id="33">Diesen Slot löschen. Seine aufgestellten Gegenstände bleiben im Weltraum und werden nicht mehr ersetzt.</t>
+            <t id="34">Bestätige zuerst die Änderungen an diesem Slot oder setze sie zurück.</t>
+            <t id="35">Löschen entsperren</t>
+            <t id="36">Gegenstände einsammeln</t>
+            <t id="37">Das Schiff und seine Flügelmänner sammeln die für diesen Slot aufgestellten Gegenstände ein. Was nicht erneut aufgestellt wird, geht an eine Station zurück, die es herstellt: als Materialien an deine eigene Station oder zu seinem Baupreis an die Station einer anderen Fraktion, wenn 'Bei Stationen anderer Fraktionen aufstocken' aktiviert ist.</t>
+            <t id="38">Diesen Slot löschen. Seine aufgestellten Gegenstände werden eingesammelt.</t>
+
+            <!-- config window sections -->
+            <t id="100">Ziel</t>
+            <t id="200">Aufstellbares</t>
+            <t id="300">Form</t>
+            <t id="400">Konzentrische Formen</t>
+            <t id="500">Parallele Schichten</t>
+            <t id="600">Versatz</t>
+            <t id="700">Wartung</t>
+
+            <!-- config window rows -->
+            <t id="110">Zielsektor</t>
+            <t id="210">Gegenstand</t>
+            <t id="310">Form</t>
+            <t id="320">Radius</t>
+            <t id="330">Dichte</t>
+            <t id="340">Ebenenausrichtung</t>
+            <t id="350">Gegenstände im Slot</t>
+            <t id="410">Anzahl</t>
+            <t id="420">Abstand</t>
+            <t id="510">Anzahl</t>
+            <t id="520">Abstand</t>
+            <t id="610">Richtung</t>
+            <t id="620">Entfernung</t>
+            <t id="710">Grenzwert für Ersatz \(%\)</t>
+            <t id="720">Bei Stationen anderer Fraktionen aufstocken</t>
+            <t id="721">Aus: Das Schiff stockt nur bei deinen eigenen Stationen und Nachschubschiffen auf, kostenlos. An: Es kann auch bei Stationen anderer Fraktionen kaufen, zu deren Preis.</t>
+
+            <!-- shapes -->
+            <t id="311">Kreis</t>
+            <t id="312">Quadrat</t>
+            <t id="313">Hexagon</t>
+            <t id="314">Kugel</t>
+            <t id="315">Würfel</t>
+            <t id="316">X4-Logo</t>
+
+            <!-- densities -->
+            <t id="331">Sehr niedrig</t>
+            <t id="332">Niedrig</t>
+            <t id="333">Mittel</t>
+            <t id="334">Hoch</t>
+            <t id="335">Sehr hoch</t>
+
+            <!-- plane orientations -->
+            <t id="341">XZ-Ekliptik</t>
+            <t id="342">X-Y-Ebene</t>
+            <t id="343">Z-Y-Ebene</t>
+
+            <!-- offset directions -->
+            <t id="611">Keine \(zentriert\)</t>
+            <t id="612">Vorwärts</t>
+            <t id="613">Rückwärts</t>
+            <t id="614">Rechts</t>
+            <t id="615">Links</t>
+            <t id="616">Hoch</t>
+            <t id="617">Runter</t>
+
+            <!-- messages -->
+            <t id="10007">Für dieses Schiff ist kein Gegenstand dieses Typs verfügbar.</t>
+            <t id="10008">Zielsektor nicht erreichbar: Alle Routen sind durch die Sperrliste für Militärschiffe blockiert.</t>
+            <t id="10014">Keine Aufstellungspositionen konfiguriert.</t>
+            <t id="10015">Aufstocken nach 5 Versuchen nicht möglich: Weder eine eigene Station oder ein Nachschubschiff noch eine erlaubte Station einer anderen Fraktion konnte liefern, oder die Credits reichten nicht aus.</t>
+            <t id="10016">Intelligenten Minenleger konfigurieren</t>
+            <t id="10019">Zu viele Gegenstände: %s, höchstens %s pro Slot.</t>
+            <t id="10020">Minenleger-Position hinzufügen</t>
+            <t id="10021">Keine Slots und kein Ziel. Lege im Verhalten des Schiffs eine Zielposition oder ein Zielobjekt fest und bestätige.</t>
+            <t id="10022">Die Gegenstände eines gelöschten Slots werden eingesammelt. Lege für einen neuen Slot im Verhalten des Schiffs eine Zielposition oder ein Zielobjekt fest.</t>
+
+            <!-- options menu -->
+            <t id="90800">Slots</t>
+            <t id="90810">Slots eines zerstörten Minenlegers behalten</t>
+            <t id="90811">Spielstunden, für die die Slots eines ohne Flügelmänner zerstörten Minenlegers erhalten bleiben, bevor sie verworfen werden; 0 verwirft sie sofort. Seine Freund/Feind-Minen bleiben in jedem Fall aktiv.</t>
+            <t id="90900">Debug</t>
+            <t id="90910">Debug-Stufe</t>
+            <t id="90911">Keine</t>
+            <t id="90912">Debug</t>
+            <t id="90913">Ablaufverfolgung</t>
+        </page>
+    </add>
+</diff>

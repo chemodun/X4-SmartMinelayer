@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Italian -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Posamine intelligente</t>
+            <t id="2">Schiera uno schema di mine o torrette laser e sostituisce automaticamente gli oggetti distrutti.</t>
+
+            <!-- order params -->
+            <t id="10">Posizione di destinazione</t>
+            <t id="20">Oggetto di destinazione</t>
+            <t id="30">Aggiungi posizione</t>
+            <t id="31">Reset</t>
+            <t id="32">Sblocca l'eliminazione di questo slot</t>
+            <t id="33">Elimina questo slot. I suoi oggetti posati restano nello spazio e non vengono più sostituiti.</t>
+            <t id="34">Prima conferma o resetta le modifiche di questo slot.</t>
+            <t id="35">Sblocca eliminazione</t>
+            <t id="36">Raccogli oggetti</t>
+            <t id="37">La nave e i suoi gregari raccolgono gli oggetti posati per questo slot. Quelli non posati di nuovo tornano a una stazione che li produce: come materiali alla tua stazione, oppure al loro prezzo di costruzione alla stazione di un'altra fazione quando Rifornimento presso stazioni di altre fazioni è attivato.</t>
+            <t id="38">Elimina questo slot. I suoi oggetti posati vengono raccolti.</t>
+
+            <!-- config window sections -->
+            <t id="100">Obiettivo</t>
+            <t id="200">Dispositivo schierabile</t>
+            <t id="300">Forma</t>
+            <t id="400">Forme concentriche</t>
+            <t id="500">Strati paralleli</t>
+            <t id="600">Spostamento</t>
+            <t id="700">Manutenzione</t>
+
+            <!-- config window rows -->
+            <t id="110">Settore di destinazione</t>
+            <t id="210">Oggetto</t>
+            <t id="310">Forma</t>
+            <t id="320">Raggio</t>
+            <t id="330">Densità</t>
+            <t id="340">Orientamento del piano</t>
+            <t id="350">Oggetti nello slot</t>
+            <t id="410">Numero</t>
+            <t id="420">Spaziatura</t>
+            <t id="510">Numero</t>
+            <t id="520">Spaziatura</t>
+            <t id="610">Direzione</t>
+            <t id="620">Distanza</t>
+            <t id="710">Soglia di sostituzione \(%\)</t>
+            <t id="720">Rifornimento presso stazioni di altre fazioni</t>
+            <t id="721">Disattivato: la nave si rifornisce solo presso le tue stazioni e navi da rifornimento, gratuitamente. Attivato: può anche acquistare presso stazioni di altre fazioni, al loro prezzo.</t>
+
+            <!-- shapes -->
+            <t id="311">Cerchio</t>
+            <t id="312">Quadrato</t>
+            <t id="313">Esagono</t>
+            <t id="314">Sfera</t>
+            <t id="315">Cubo</t>
+            <t id="316">Logo X4</t>
+
+            <!-- densities -->
+            <t id="331">Molto bassa</t>
+            <t id="332">Bassa</t>
+            <t id="333">Media</t>
+            <t id="334">Alta</t>
+            <t id="335">Molto alta</t>
+
+            <!-- plane orientations -->
+            <t id="341">Eclittica XZ</t>
+            <t id="342">Piano X-Y</t>
+            <t id="343">Piano Z-Y</t>
+
+            <!-- offset directions -->
+            <t id="611">Nessuno \(centrato\)</t>
+            <t id="612">Avanti</t>
+            <t id="613">Indietro</t>
+            <t id="614">Destra</t>
+            <t id="615">Sinistra</t>
+            <t id="616">Su</t>
+            <t id="617">Giù</t>
+
+            <!-- messages -->
+            <t id="10007">Nessun oggetto di questo tipo è disponibile per questa nave.</t>
+            <t id="10008">Impossibile raggiungere il settore di destinazione: tutte le rotte sono bloccate dalla lista nera militare.</t>
+            <t id="10014">Nessuna posizione di schieramento configurata.</t>
+            <t id="10015">Impossibile rifornirsi dopo 5 tentativi: nessuna stazione o nave da rifornimento propria, né una stazione consentita di un'altra fazione, ha potuto fornirlo, oppure i crediti non erano sufficienti.</t>
+            <t id="10016">Configura Posamine intelligente</t>
+            <t id="10019">Troppi oggetti: %s, al massimo %s per slot.</t>
+            <t id="10020">Aggiungi posizione posamine</t>
+            <t id="10021">Nessuno slot e nessun obiettivo. Imposta una Posizione di destinazione o un Oggetto di destinazione nel Comportamento della nave e conferma.</t>
+            <t id="10022">Raccolta degli oggetti di uno slot eliminato in corso. Per un nuovo slot, imposta una Posizione di destinazione o un Oggetto di destinazione nel Comportamento della nave.</t>
+
+            <!-- options menu -->
+            <t id="90800">Slot</t>
+            <t id="90810">Mantieni gli slot di un posamine distrutto</t>
+            <t id="90811">Ore di gioco durante le quali gli slot di un posamine distrutto senza gregari vengono mantenuti prima di essere scartati; 0 li scarta subito. Le sue mine amico/nemico continuano a funzionare in ogni caso.</t>
+            <t id="90900">Debug</t>
+            <t id="90910">Livello di debug</t>
+            <t id="90911">Nessuno</t>
+            <t id="90912">Debug</t>
+            <t id="90913">Traccia</t>
+        </page>
+    </add>
+</diff>

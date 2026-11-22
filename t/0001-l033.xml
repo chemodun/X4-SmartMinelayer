@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- French -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Poseur de mines intelligent</t>
+            <t id="2">Déployer un motif de mines ou de tourelles laser et remplacer automatiquement les objets détruits.</t>
+
+            <!-- order params -->
+            <t id="10">Position cible</t>
+            <t id="20">Objet cible</t>
+            <t id="30">Ajouter une position</t>
+            <t id="31">Remettre à zéro</t>
+            <t id="32">Déverrouiller la suppression de cet emplacement</t>
+            <t id="33">Supprimer cet emplacement. Ses objets déployés restent dans l'espace et ne sont plus remplacés.</t>
+            <t id="34">Confirmez ou remettez d'abord à zéro les modifications de cet emplacement.</t>
+            <t id="35">Déverrouiller la suppression</t>
+            <t id="36">Récupérer les objets</t>
+            <t id="37">Le vaisseau et ses ailiers récupèrent les objets déployés pour cet emplacement. Ceux qui ne sont pas redéployés retournent à une station qui les fabrique : comme matériaux à votre propre station, ou à leur prix de construction à la station d'une autre faction si « Se réapprovisionner auprès des stations d'autres factions » est activé.</t>
+            <t id="38">Supprimer cet emplacement. Ses objets déployés sont récupérés.</t>
+
+            <!-- config window sections -->
+            <t id="100">Cible</t>
+            <t id="200">Déployable</t>
+            <t id="300">Forme</t>
+            <t id="400">Formes concentriques</t>
+            <t id="500">Couches parallèles</t>
+            <t id="600">Décalage</t>
+            <t id="700">Maintenance</t>
+
+            <!-- config window rows -->
+            <t id="110">Secteur cible</t>
+            <t id="210">Objet</t>
+            <t id="310">Forme</t>
+            <t id="320">Rayon</t>
+            <t id="330">Densité</t>
+            <t id="340">Orientation du plan</t>
+            <t id="350">Objets dans l'emplacement</t>
+            <t id="410">Nombre</t>
+            <t id="420">Espacement</t>
+            <t id="510">Nombre</t>
+            <t id="520">Espacement</t>
+            <t id="610">Direction</t>
+            <t id="620">Distance</t>
+            <t id="710">Seuil de remplacement \(%\)</t>
+            <t id="720">Se réapprovisionner auprès des stations d'autres factions</t>
+            <t id="721">Désactivé : le vaisseau se réapprovisionne uniquement auprès de vos propres stations et vaisseaux de ravitaillement, gratuitement. Activé : il peut aussi acheter auprès des stations d'autres factions, à leur prix.</t>
+
+            <!-- shapes -->
+            <t id="311">Cercle</t>
+            <t id="312">Carré</t>
+            <t id="313">Hexagone</t>
+            <t id="314">Sphère</t>
+            <t id="315">Cube</t>
+            <t id="316">Logo X4</t>
+
+            <!-- densities -->
+            <t id="331">Très faible</t>
+            <t id="332">Faible</t>
+            <t id="333">Moyenne</t>
+            <t id="334">Élevée</t>
+            <t id="335">Très élevée</t>
+
+            <!-- plane orientations -->
+            <t id="341">Écliptique XZ</t>
+            <t id="342">Plan X-Y</t>
+            <t id="343">Plan Z-Y</t>
+
+            <!-- offset directions -->
+            <t id="611">Aucun \(centré\)</t>
+            <t id="612">Avant</t>
+            <t id="613">Arrière</t>
+            <t id="614">Droite</t>
+            <t id="615">Gauche</t>
+            <t id="616">Haut</t>
+            <t id="617">Bas</t>
+
+            <!-- messages -->
+            <t id="10007">Aucun objet de ce type n'est disponible pour ce vaisseau.</t>
+            <t id="10008">Impossible d'atteindre le secteur cible : toutes les routes sont bloquées par la liste noire des vaisseaux militaires.</t>
+            <t id="10014">Aucune position de déploiement configurée.</t>
+            <t id="10015">Réapprovisionnement impossible après 5 tentatives : ni vos stations ou vaisseaux de ravitaillement, ni une station autorisée d'une autre faction n'ont pu le fournir, ou les crédits étaient insuffisants.</t>
+            <t id="10016">Configurer le poseur de mines intelligent</t>
+            <t id="10019">Trop d'objets : %s, au maximum %s par emplacement.</t>
+            <t id="10020">Ajouter une position de poseur de mines</t>
+            <t id="10021">Aucun emplacement et aucune cible. Définissez une position cible ou un objet cible dans le Comportement du vaisseau, puis confirmez.</t>
+            <t id="10022">Récupération des objets d'un emplacement supprimé. Pour un nouvel emplacement, définissez une position cible ou un objet cible dans le Comportement du vaisseau.</t>
+
+            <!-- options menu -->
+            <t id="90800">Emplacements</t>
+            <t id="90810">Conserver les emplacements d'un poseur de mines détruit</t>
+            <t id="90811">Heures de jeu pendant lesquelles les emplacements d'un poseur de mines détruit sans ailiers sont conservés avant d'être supprimés ; 0 les supprime immédiatement. Ses mines Ami/Ennemi restent actives dans tous les cas.</t>
+            <t id="90900">Débogage</t>
+            <t id="90910">Niveau de débogage</t>
+            <t id="90911">Aucun</t>
+            <t id="90912">Débogage</t>
+            <t id="90913">Trace</t>
+        </page>
+    </add>
+</diff>

@@ -6,8 +6,11 @@
 
     <library name="SML_ScannerParams" purpose="include_actions">
       <actions>
-        <set_value name="$scanInterval" exact="5s" />
-        <set_value name="$maxFieldsPerTick" exact="2" />
+        <set_value name="$scanInterval" exact="3s" />
+        <!-- while an enemy is within $trackRange of the field's reach -->
+        <set_value name="$alertInterval" exact="1s" />
+        <set_value name="$trackRange" exact="40km" />
+        <set_value name="$maxFieldsPerTick" exact="4" />
         <set_value name="$sweepInterval" exact="60s" />
         <set_value name="$maxSweepsPerTick" exact="2" />
       </actions>
@@ -31,6 +34,19 @@
           <set_value name="$damage" exact="$stats.$damage" />
           <set_value name="$hull" exact="$stats.$hull" />
           <set_value name="$shield" exact="$stats.$shield" />
+        </do_if>
+      </actions>
+    </library>
+
+    <!-- in $d0, $d1: distances from a point to a path's ends, $len: path length, $r; out $near: the path passes within $r -->
+    <library name="SML_PathNear" purpose="include_actions">
+      <actions>
+        <set_value name="$near" exact="$d0 le $r or $d1 le $r" />
+        <do_if value="not $near and $len gt 0m">
+          <set_value name="$along" exact="($d0 * $d0 - $d1 * $d1 + $len * $len) / (2 * $len)" />
+          <do_if value="$along gt 0m and $along lt $len">
+            <set_value name="$near" exact="$d0 * $d0 - $along * $along le $r * $r" />
+          </do_if>
         </do_if>
       </actions>
     </library>
@@ -213,23 +229,58 @@
                   </do_if>
 
                   <set_value name="$found" exact="0" />
+                  <set_value name="$crossing" exact="0" />
                   <set_value name="$checks" exact="0" />
                   <set_value name="$hits" exact="0" />
+                  <set_value name="$track" exact="table[]" />
                   <do_if value="$mines.count gt 0">
                     <find_ship name="$ships" space="$e.$sector" multiple="true" docked="false">
-                      <match_distance space="$e.$sector" value="$field.$center" max="$field.$radius + $field.$reach" />
+                      <match_distance space="$e.$sector" value="$field.$center" max="$field.$radius + $field.$reach + $trackRange" />
                       <match_relation_of object="$mines.{1}" relation="enemy" comparison="le" />
                     </find_ship>
                     <set_value name="$found" exact="$ships.count" />
+                    <do_if value="$found gt 0">
+                      <set_value name="$field.$nextScan" exact="player.age + $alertInterval" />
+                    </do_if>
+                    <do_if value="not $field.$track?">
+                      <set_value name="$field.$track" exact="table[]" />
+                    </do_if>
+                    <!-- low-attention positions jump by kilometres: test the path since the last read, not the point -->
+                    <set_value name="$crossers" exact="[]" />
+                    <set_value name="$from" exact="table[]" />
+                    <set_value name="$moved" exact="table[]" />
+                    <!-- distances run centre to centre: a large hull reaches half its size closer -->
+                    <set_value name="$extent" exact="table[]" />
+                    <do_for_each name="$s" in="$ships">
+                      <create_position name="$p" space="$e.$sector" object="$s" />
+                      <set_value name="$track.{$s}" exact="$p" />
+                      <set_value name="$from.{$s}" exact="if $field.$track.{$s}? then $field.$track.{$s} else $p" />
+                      <set_value name="$moved.{$s}" exact="$from.{$s}.distanceto.{$p}" />
+                      <set_value name="$extent.{$s}" exact="$s.size / 2" />
+                      <set_value name="$d0" exact="$field.$center.distanceto.{$from.{$s}}" />
+                      <set_value name="$d1" exact="$field.$center.distanceto.{$p}" />
+                      <set_value name="$len" exact="$moved.{$s}" />
+                      <set_value name="$r" exact="$field.$radius + $field.$reach + $extent.{$s}" />
+                      <include_actions ref="SML_PathNear" />
+                      <do_if value="$near">
+                        <append_to_list name="$crossers" exact="$s" />
+                      </do_if>
+                    </do_for_each>
+                    <set_value name="$crossing" exact="$crossers.count" />
                     <do_for_each name="$m" in="$mines">
-                      <do_if value="$ships.count == 0">
+                      <do_if value="$crossers.count == 0">
                         <break />
                       </do_if>
                       <!-- at visible and above the engine's own sensor does the work -->
                       <do_if value="$m.exists and $m.attention lt attention.visible">
-                        <do_for_each name="$s" in="$ships">
+                        <do_for_each name="$s" in="$crossers">
                           <set_value name="$checks" operation="add" />
-                          <do_if value="$m.distanceto.{$s} le $field.$reach">
+                          <set_value name="$r" exact="$field.$reach + $extent.{$s}" />
+                          <set_value name="$len" exact="$moved.{$s}" />
+                          <set_value name="$d1" exact="$m.distanceto.[$e.$sector, $track.{$s}]" />
+                          <set_value name="$d0" exact="if $len gt 0m then $m.distanceto.[$e.$sector, $from.{$s}] else $d1" />
+                          <include_actions ref="SML_PathNear" />
+                          <do_if value="$near">
                             <set_value name="$victim" exact="$s" />
                             <break />
                           </do_if>
@@ -238,9 +289,9 @@
                           <apply_attackstrength object="$victim" attacker="$m" explosion="true" hullshield="$field.$damage" hullonly="$field.$hull" shieldonly="$field.$shield" hullnoshield="0">
                             <result killed="$killed" />
                           </apply_attackstrength>
-                          <debug_text text="'SmartMinelayer: scanner slot %s: %s detonated on %s, killed %s'.[$e.$uid, $m.debugname, $victim.debugname, @$killed]" chance="$debugChance" />
+                          <debug_text text="'SmartMinelayer: scanner slot %s: %s detonated on %s (moved %s since the last scan, now %s off), killed %s'.[$e.$uid, $m.debugname, $victim.debugname, $moved.{$victim}, $d1, @$killed]" chance="$debugChance" />
                           <do_if value="@$killed">
-                            <remove_from_list name="$ships" exact="$victim" />
+                            <remove_from_list name="$crossers" exact="$victim" />
                           </do_if>
                           <destroy_object object="$m" explosion="true" />
                           <set_value name="$hits" operation="add" />
@@ -250,7 +301,8 @@
                       </do_if>
                     </do_for_each>
                   </do_if>
-                  <debug_text text="'SmartMinelayer: scanner slot %s scan: mines %s, ships %s, checks %s, hits %s'.[$e.$uid, $mines.count, $found, $checks, $hits]" chance="$traceChance" />
+                  <set_value name="$field.$track" exact="$track" />
+                  <debug_text text="'SmartMinelayer: scanner slot %s scan: mines %s, ships %s, crossing %s, checks %s, hits %s, next in %s'.[$e.$uid, $mines.count, $found, $crossing, $checks, $hits, $field.$nextScan - player.age]" chance="$traceChance" />
                 </do_if>
               </do_all>
 
@@ -274,7 +326,21 @@
               <remove_value name="$found" />
               <remove_value name="$checks" />
               <remove_value name="$hits" />
+              <remove_value name="$crossers" />
+              <remove_value name="$crossing" />
+              <remove_value name="$track" />
+              <remove_value name="$from" />
+              <remove_value name="$moved" />
+              <remove_value name="$extent" />
+              <remove_value name="$d0" />
+              <remove_value name="$d1" />
+              <remove_value name="$len" />
+              <remove_value name="$r" />
+              <remove_value name="$near" />
+              <remove_value name="$along" />
               <remove_value name="$scanInterval" />
+              <remove_value name="$alertInterval" />
+              <remove_value name="$trackRange" />
               <remove_value name="$maxFieldsPerTick" />
               <remove_value name="$sweepInterval" />
               <remove_value name="$maxSweepsPerTick" />

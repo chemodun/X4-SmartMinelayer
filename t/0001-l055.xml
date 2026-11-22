@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Portuguese -->
+<diff>
+    <add sel="/language">
+        <page id="1972092417" title="Smart Minelayer" descr="" voice="no">
+            <!-- mod identity -->
+            <t id="1">Lança-minas inteligente</t>
+            <t id="2">Lança um padrão de minas ou torres de laser e repõe automaticamente os itens destruídos.</t>
+
+            <!-- order params -->
+            <t id="10">Posição do alvo</t>
+            <t id="20">Objeto alvo</t>
+            <t id="30">Adicionar posição</t>
+            <t id="31">Reiniciar</t>
+            <t id="32">Destravar a exclusão deste slot</t>
+            <t id="33">Apagar este slot. Os itens lançados permanecem no espaço e não são mais repostos.</t>
+            <t id="34">Primeiro confirme ou reinicie as mudanças deste slot.</t>
+            <t id="35">Destravar exclusão</t>
+            <t id="36">Coletar itens</t>
+            <t id="37">A nave e seu esquadrão coletam os itens lançados para este slot. Os que não forem lançados novamente voltam para uma estação que os fabrica: como materiais para sua própria estação, ou pelo preço de construção para a estação de outra facção quando Reabastecer em estações de outras facções estiver ligado.</t>
+            <t id="38">Apagar este slot. Os itens lançados são coletados.</t>
+
+            <!-- config window sections -->
+            <t id="100">Alvo</t>
+            <t id="200">Instalável</t>
+            <t id="300">Forma</t>
+            <t id="400">Formas concêntricas</t>
+            <t id="500">Camadas paralelas</t>
+            <t id="600">Deslocamento</t>
+            <t id="700">Manutenção</t>
+
+            <!-- config window rows -->
+            <t id="110">Setor alvo</t>
+            <t id="210">Item</t>
+            <t id="310">Forma</t>
+            <t id="320">Raio</t>
+            <t id="330">Densidade</t>
+            <t id="340">Orientação do plano</t>
+            <t id="350">Itens no slot</t>
+            <t id="410">Número</t>
+            <t id="420">Espaçamento</t>
+            <t id="510">Número</t>
+            <t id="520">Espaçamento</t>
+            <t id="610">Direção</t>
+            <t id="620">Distância</t>
+            <t id="710">Limite de reposição \(%\)</t>
+            <t id="720">Reabastecer em estações de outras facções</t>
+            <t id="721">Desligado: a nave se reabastece apenas em suas próprias estações e naves de reabastecimento, sem custo. Ligado: também pode comprar em estações de outras facções, pelo preço delas.</t>
+
+            <!-- shapes -->
+            <t id="311">Círculo</t>
+            <t id="312">Quadrado</t>
+            <t id="313">Hexágono</t>
+            <t id="314">Esfera</t>
+            <t id="315">Cubo</t>
+            <t id="316">Logo do X4</t>
+
+            <!-- densities -->
+            <t id="331">Muito baixa</t>
+            <t id="332">Baixa</t>
+            <t id="333">Média</t>
+            <t id="334">Alta</t>
+            <t id="335">Muito alta</t>
+
+            <!-- plane orientations -->
+            <t id="341">Eclíptica XZ</t>
+            <t id="342">Plano X-Y</t>
+            <t id="343">Plano Z-Y</t>
+
+            <!-- offset directions -->
+            <t id="611">Nenhum \(centralizado\)</t>
+            <t id="612">À frente</t>
+            <t id="613">Para trás</t>
+            <t id="614">Direita</t>
+            <t id="615">Esquerda</t>
+            <t id="616">Para cima</t>
+            <t id="617">Para baixo</t>
+
+            <!-- messages -->
+            <t id="10007">Nenhum item deste tipo está disponível para esta nave.</t>
+            <t id="10008">Não é possível alcançar o setor alvo: todas as rotas estão bloqueadas pela lista negra militar.</t>
+            <t id="10014">Nenhuma posição de lançamento configurada.</t>
+            <t id="10015">Não foi possível reabastecer após 5 tentativas: nenhuma estação ou nave de reabastecimento própria, nem uma estação permitida de outra facção, pôde fornecê-lo, ou não havia créditos suficientes.</t>
+            <t id="10016">Configurar Lança-minas inteligente</t>
+            <t id="10019">Itens demais: %s, no máximo %s por slot.</t>
+            <t id="10020">Adicionar posição de lança-minas</t>
+            <t id="10021">Nenhum slot e nenhum alvo. Defina uma Posição do alvo ou um Objeto alvo no Comportamento da nave e confirme.</t>
+            <t id="10022">Coletando os itens de um slot apagado. Para um novo slot, defina uma Posição do alvo ou um Objeto alvo no Comportamento da nave.</t>
+
+            <!-- options menu -->
+            <t id="90800">Slots</t>
+            <t id="90810">Manter os slots de um lança-minas destruído</t>
+            <t id="90811">Horas de jogo durante as quais os slots de um lança-minas destruído sem esquadrão são mantidos antes de serem descartados; 0 os descarta imediatamente. Suas minas aliado/inimigo continuam funcionando de qualquer forma.</t>
+            <t id="90900">Depuração</t>
+            <t id="90910">Nível de depuração</t>
+            <t id="90911">Nenhum</t>
+            <t id="90912">Depuração</t>
+            <t id="90913">Rastreamento</t>
+        </page>
+    </add>
+</diff>
