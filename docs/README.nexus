@@ -1,6 +1,6 @@
 [size=4][u]Smart Minelayer[/u][/size]
 
-Laying a minefield by hand means placing every mine yourself and coming back whenever the field thins out, and while you are away the game leaves the mines inert. This extension adds the [b]Smart Minelayer[/b] order: the ship lays mines or laser towers in a pattern you design on the map, refills the losses on its own, restocks itself when it runs out, and its friend/foe mines keep fighting while you are far away.
+Adds the [b]Smart Minelayer[/b] order: the ship lays mines or laser towers in a pattern you design on the map, refills and restocks them on its own, and its friend/foe mines keep fighting while you are away.
 
 [size=3][u][b]Features[/b][/u][/size]
 [list]
@@ -20,7 +20,7 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [*] S, M and L ships only: XL ships are not offered the order.
 [*] One kind of item per ship: once the order holds a mine or laser tower, the window keeps it. To lay another kind, give the ship a new order.
 [*] Only friend/foe mines: any other mine could hit the minelayer itself while it lays the field.
-[*] While you are away, a mine hits the first enemy ship within its reach; there is no hit chance.
+[*] While you are away, a mine hits the first enemy ship whose flight path came within its reach since the last check, also one that only passed by; there is no hit chance.
 [*] A restock that fails five times in a row stops the order with a message. A trip cut short by your own edit of the order or by another order does not count.
 [*] The extension patches two game AI scripts, [b]order.assist.xml[/b] and [b]interrupt.attacked.xml[/b], and one mission script, [b]notifications.xml[/b]. The patches are small, but another mod that patches or replaces the same scripts can still conflict with it.
 [/list]
@@ -32,7 +32,7 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2042901274]SirNukes Mod Support APIs[/url]
 [*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/503]Mod Support APIs[/url]
 [/list]
-[*] [b]Options Helper[/b]: Version [b]1.10[/b] or higher by [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Chem O`Dun[/url].
+[*] [b]Options Helper[/b]: Version [b]1.40[/b] or higher by [url=https://next.nexusmods.com/profile/ChemODun/mods?gameId=2659]Chem O`Dun[/url].
 [list]
 [*] Available on Steam: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3715253556]Options Helper[/url]
 [*] Available on Nexus Mods: [url=https://www.nexusmods.com/x4foundations/mods/2089]Options Helper[/url]
@@ -56,7 +56,7 @@ Laying a minefield by hand means placing every mine yourself and coming back whe
 [size=3][u][b]Installation[/b][/u][/size]
 
 You can download the latest version via Steam client - [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3843065392]Smart Minelayer[/url]
-Or you can do it via the Nexus Mods - [url=https://www.nexusmods.com/x4foundations/mods/0]Smart Minelayer[/url]
+Or you can do it via the Nexus Mods - [url=https://www.nexusmods.com/x4foundations/mods/2622]Smart Minelayer[/url]
 
 [size=3][u][b]Save state[/b][/u][/size]
 
@@ -90,7 +90,7 @@ For another field, select the ship, right-click a spot in space, a station or a 
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/context_add_position.png[/img]
 
-The window opens with a new tab beside the saved ones, and the map marks the new field; up to nine slots, one tab each. The saved tabs are read-only here: [b]Configure Smart Minelayer[/b] changes or deletes them. A target that already has a slot gets one more. [b]Cancel[/b] drops the new slot again. A new target in its [b]Behaviour[/b] adds no slot.
+The window opens with a new tab beside the saved ones, and the map marks the new field; up to nine slots, one tab each. The saved tabs are read-only here: [b]Configure Smart Minelayer[/b] changes or deletes them. A target that already has a slot gets one more. [b]Cancel[/b], Escape or closing the map drops the new slot again. A new target in its [b]Behaviour[/b] adds no slot.
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/window_add_slot.png[/img]
 
@@ -110,9 +110,7 @@ Deleting the last slot clears the order's target too: the ship and its wingmen c
 
 [img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/behaviour_standby.png[/img]
 
-When the window of the first slot is closed without a slot, the order fails with a note; [b]Configure Smart Minelayer[/b] opens the window again.
-
-[img]https://raw.githubusercontent.com/chemodun/X4-SmartMinelayer/refs/heads/main/docs/images/behaviour_failed.png[/img]
+Cancelling the window of the first slot, with [b]Cancel[/b], Escape or by closing the map, leaves the ship the same way: no slot, no target, standing by.
 
 Two fields on the map, each beside its slot:
 
@@ -148,7 +146,7 @@ An options page is available via the [b]Extension Options[/b] menu. [b]Keep Slot
 [/list]
 [size=3][u][b]Changelog[/b][/u][/size]
 
-[size=3][u][i][1.00] - unreleased[/i][/u][/size]
+[size=3][u][i][1.00] - 2026-11-22[/i][/u][/size]
 [list]
 [*] [b]Added[/b]
 [list]
