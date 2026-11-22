@@ -51,6 +51,7 @@ local config = {
   opVar              = "$SmartMinelayerConfigOp",
   deployableMacroVar = "$SmartMinelayerDeployableMacro",
   deployableInputsVar = "$SmartMinelayerDeployableInputs",
+  deployablesVar     = "$SmartMinelayerDeployables",
   configPositionVar  = "$SmartMinelayerConfigPosition",
   restockNpcVar      = "$SmartMinelayerRestockNpc",
   lowAttentionVar    = "$SmartMinelayerLowAttention",
@@ -110,6 +111,36 @@ function sm.ReadConfig()
   if playerId == 0 then return end
   local cfg = GetNPCBlackboard(playerId, config.configBlackboard)
   sm.debugLevel = (type(cfg) == "table" and cfg.debugLevel) and tostring(cfg.debugLevel) or "none"
+end
+
+-- build inputs per production run; script properties do not give them for equipment
+local function wareInputs(wareId)
+  local resources, runAmount = GetWareData(wareId, "resources", "productionamount")
+  local inputs = {}
+  for _, r in ipairs(resources or {}) do inputs[#inputs + 1] = { ware = r.ware, amount = r.amount } end
+  return { runAmount = runAmount or 1, wares = inputs }
+end
+
+-- build inputs of every deployable by macro, so the order can decompose the ones it does not use
+function sm.publishDeployables()
+  local playerId = ConvertStringTo64Bit(tostring(C.GetPlayerID()))
+  if playerId == 0 then return end
+  local byMacro, count = {}, 0
+  for _, tag in ipairs({ "mine", "lasertower", "satellite", "navbeacon", "resourceprobe" }) do
+    local n = C.GetNumWares(tag, false, "", "")
+    local buf = ffi.new("const char*[?]", n)
+    n = C.GetWares(buf, n, tag, false, "", "")
+    for i = 0, n - 1 do
+      local wareId = ffi.string(buf[i])
+      local macro = GetWareData(wareId, "component")
+      if macro and macro ~= "" and not byMacro[macro] then
+        byMacro[macro] = wareInputs(wareId)
+        count = count + 1
+      end
+    end
+  end
+  SetNPCBlackboard(playerId, config.deployablesVar, byMacro)
+  sm.Debug("published the build inputs of %d deployables", count)
 end
 
 -- *** geometry ***
@@ -745,11 +776,7 @@ function sm.onConfigOK()
 
   SetNPCBlackboard(request.handle, config.opVar, op)
   SetNPCBlackboard(request.handle, config.deployableMacroVar, cfg.wareMacro)
-  -- the order's restock needs the build inputs, which script properties do not give for equipment
-  local resources, runAmount = GetWareData(cfg.ware, "resources", "productionamount")
-  local inputs = {}
-  for _, r in ipairs(resources or {}) do inputs[#inputs + 1] = { ware = r.ware, amount = r.amount } end
-  SetNPCBlackboard(request.handle, config.deployableInputsVar, { runAmount = runAmount or 1, wares = inputs })
+  SetNPCBlackboard(request.handle, config.deployableInputsVar, wareInputs(cfg.ware))
   SetNPCBlackboard(request.handle, config.restockNpcVar, cfg.restockNpc and 1 or 0)
   local opt = (cfg.kind == KIND_MINE) and sm.selectedWareOption(cfg) or {}
   local mine = opt.mine
@@ -1172,6 +1199,7 @@ end
 local function Init()
   sm.menu = Helper.getMenu("MapMenu")
   sm.ReadConfig()
+  sm.publishDeployables()
   RegisterEvent("SmartMinelayer.Configure", sm.onConfigure)
   RegisterEvent("SmartMinelayer.ConfigChanged", sm.ReadConfig)
   if sm.menu then

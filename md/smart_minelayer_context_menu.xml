@@ -6,7 +6,7 @@
     <cue name="Main" version="3">
       <cues>
 
-        <cue name="SML_Add_Menu_Actions" instantiate="true">
+        <cue name="SML_Add_Menu_Actions" instantiate="true" version="2">
           <conditions>
             <event_cue_signalled cue="md.Interact_Menu_API.Get_Actions" />
             <check_value value="@event.param.$object.exists" />

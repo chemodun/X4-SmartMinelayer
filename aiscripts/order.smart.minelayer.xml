@@ -204,6 +204,112 @@
         <remove_value name="$retInput" />
         <remove_value name="$retPerRun" />
       </actions>
+      <!-- in $retStation (docked there), $retMacro, $retLocAmount, $retInputs, $retRunAmount, $retUnitPrice: an own station gets the build inputs, another faction's pays the build price -->
+      <actions name="handOver">
+        <remove_ammo object="this.assignedcontrolled" macro="$retMacro" amount="$retLocAmount" />
+        <do_if value="$retStation.isplayerowned">
+          <set_value name="$retAdded" exact="table[]" />
+          <do_for_each name="$retInput" valuename="$retPerRun" in="$retInputs">
+            <set_value name="$retAdd" exact="(($retPerRun * $retLocAmount) / $retRunAmount)i" />
+            <do_if value="$retAdd gt 0">
+              <add_cargo object="$retStation" ware="$retInput" exact="$retAdd" />
+              <set_value name="$retAdded.{$retInput}" exact="$retAdd" />
+            </do_if>
+          </do_for_each>
+          <debug_text text="'SmartMinelayer: %s returned %s of %s to %s as build inputs %s'.[this.assignedcontrolled.debugname, $retLocAmount, $retMacro, $retStation.debugname, $retAdded]" chance="$debugChance" />
+          <remove_value name="$retAdd" />
+          <remove_value name="$retAdded" />
+        </do_if>
+        <do_else>
+          <set_value name="$retPrice" exact="(($retUnitPrice * $retLocAmount / 1Cr)i)Cr" />
+          <set_value name="$retPlayerMoney" exact="player.money" />
+          <transfer_money from="$retStation" to="faction.player" amount="$retPrice" />
+          <debug_text text="'SmartMinelayer: %s sold %s of %s to %s for %s Cr, player received %s Cr'.[this.assignedcontrolled.debugname, $retLocAmount, $retMacro, $retStation.debugname, $retPrice / 1Cr, (player.money - $retPlayerMoney) / 1Cr]" chance="$debugChance" />
+          <remove_value name="$retPlayerMoney" />
+          <remove_value name="$retPrice" />
+        </do_else>
+        <remove_value name="$retInput" />
+        <remove_value name="$retPerRun" />
+      </actions>
+      <!-- in $retStation (docked there): every other deployable aboard that it builds goes, as collected items do -->
+      <actions name="handOverOthers">
+        <do_for_each name="$retMacro" valuename="$retAmount" in="this.assignedcontrolled.ammostorage.deployable.table">
+          <set_value name="$retData" exact="@player.entity.$SmartMinelayerDeployables.{'$' + $retMacro.id}" />
+          <do_if value="$retMacro != $deployableMacro and $retAmount gt 0 and typeof $retData == datatype.table">
+            <set_value name="$retLoc" exact="$retStation" />
+            <set_value name="$retWare" exact="$retMacro.ware" />
+            <set_value name="$retInputs" exact="table[]" />
+            <do_for_each name="$retInput" in="$retData.$wares">
+              <set_value name="$retInputs.{ware.{$retInput.$ware}}" exact="$retInput.$amount" />
+            </do_for_each>
+            <set_value name="$retRunAmount" exact="[$retData.$runAmount, 1].max" />
+            <include_interrupt_actions ref="checkReturnStation" />
+            <do_if value="$retLocOk">
+              <include_interrupt_actions ref="handOver" />
+            </do_if>
+            <do_else>
+              <debug_text text="'SmartMinelayer: %s keeps %s of %s, %s does not take it'.[this.assignedcontrolled.debugname, $retAmount, $retMacro, $retStation.debugname]" chance="$traceChance" />
+            </do_else>
+          </do_if>
+        </do_for_each>
+        <remove_value name="$retMacro" />
+        <remove_value name="$retAmount" />
+        <remove_value name="$retData" />
+        <remove_value name="$retLoc" />
+        <remove_value name="$retWare" />
+        <remove_value name="$retInputs" />
+        <remove_value name="$retInput" />
+        <remove_value name="$retRunAmount" />
+        <remove_value name="$retLocOk" />
+        <remove_value name="$retLocAmount" />
+        <remove_value name="$retUnitPrice" />
+      </actions>
+      <!-- out $freeRoomClaims: items to collect this ship claims before it frees room, up to its own stock of the item -->
+      <actions name="claimCollect">
+        <set_value name="$freeRoomClaims" exact="0" />
+        <set_value name="$claimMax" exact="this.assignedcontrolled.ammostorage.{$deployableMacro}.count" />
+        <set_value name="$claimLeader" exact="if @this.assignedcontrolled.commander then this.assignedcontrolled.commander else this.assignedcontrolled" />
+        <do_for_each name="$claimKey" valuename="$claimCand" in="$slots">
+          <do_if value="$freeRoomClaims ge $claimMax">
+            <break />
+          </do_if>
+          <do_if value="@$claimCand.$collect and $claimCand.$ship == $claimLeader">
+            <do_for_each name="$claimItem" in="$claimCand.$items.keys.list">
+              <do_if value="$freeRoomClaims ge $claimMax">
+                <break />
+              </do_if>
+              <do_if value="$claimItem.exists and $claimItem.macro == $deployableMacro and not ($collectSkip.{$claimItem}? and $collectSkip.{$claimItem} gt player.age)">
+                <set_value name="$claimer" exact="@$claimCand.$inFlight.{$claimItem}" />
+                <do_if value="not $claimer or $claimer == this.assignedcontrolled or not @$claimer.isoperational or (@$claimer.defaultorder.id != 'SmartMinelayer' and @$claimer.defaultorder.id != 'Assist')">
+                  <set_value name="$claimCand.$inFlight.{$claimItem}" exact="this.assignedcontrolled" />
+                  <set_value name="$freeRoomClaims" operation="add" />
+                </do_if>
+              </do_if>
+            </do_for_each>
+          </do_if>
+        </do_for_each>
+        <remove_value name="$claimMax" />
+        <remove_value name="$claimLeader" />
+        <remove_value name="$claimKey" />
+        <remove_value name="$claimCand" />
+        <remove_value name="$claimItem" />
+        <remove_value name="$claimer" />
+      </actions>
+      <!-- every claim of this ship on an item to collect goes -->
+      <actions name="releaseCollectClaims">
+        <do_for_each name="$claimKey" valuename="$claimCand" in="$slots">
+          <do_if value="@$claimCand.$collect">
+            <do_for_each name="$claimItem" in="$claimCand.$inFlight.keys.list">
+              <do_if value="$claimCand.$inFlight.{$claimItem} == this.assignedcontrolled">
+                <remove_value name="$claimCand.$inFlight.{$claimItem}" />
+              </do_if>
+            </do_for_each>
+          </do_if>
+        </do_for_each>
+        <remove_value name="$claimKey" />
+        <remove_value name="$claimCand" />
+        <remove_value name="$claimItem" />
+      </actions>
       <!-- out $requestSlots: the window's copy of this ship's slots in tab order -->
       <actions name="requestSlots">
         <set_value name="$requestSlots" exact="[]" />
@@ -711,6 +817,13 @@
       <do_if value="@this.$SmartMinelayerSurplus gt 0 and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age)">
         <resume label="returnSurplus" />
       </do_if>
+      <!-- storage full, items to collect, nothing to lay: some of the item goes back first, the rest of the storage too -->
+      <do_if value="$collectFound and this.assignedcontrolled.ammostorage.deployable.free lt 1 and this.assignedcontrolled.ammostorage.deployable.capacity gt 0 and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age)">
+        <include_interrupt_actions ref="claimCollect" />
+        <set_value name="$freeRoom" exact="true" />
+        <debug_text text="'SmartMinelayer: %s has no free deployable storage, %s aboard, %s of it claimed items to collect make room for'.[this.assignedcontrolled.debugname, this.assignedcontrolled.ammostorage.deployable.count, $freeRoomClaims]" chance="$debugChance" />
+        <resume label="returnSurplus" />
+      </do_if>
       <do_if value="not $collectFound and this.$SmartMinelayerSurplus? and this.$SmartMinelayerSurplus le 0">
         <remove_value name="this.$SmartMinelayerSurplus" />
         <remove_value name="this.$SmartMinelayerSurplusNext" />
@@ -756,7 +869,9 @@
       </do_for_each>
       <remove_value name="$restockUid" />
       <remove_value name="$restockEntry" />
-      <set_value name="$restockFreeStorage" exact="this.assignedcontrolled.ammostorage.deployable.free" />
+      <!-- the other deployables aboard go at the station before the purchase -->
+      <set_value name="$restockRealFree" exact="this.assignedcontrolled.ammostorage.deployable.free" />
+      <set_value name="$restockFreeStorage" exact="$restockRealFree + this.assignedcontrolled.ammostorage.deployable.count - this.assignedcontrolled.ammostorage.{$deployableMacro}.count" />
       <set_value name="$restockAmount" exact="[$restockMissing + [($restockPositions * 3) / 10, ($restockFreeStorage * 3) / 5].min, $restockFreeStorage].min" />
       <set_value name="$restockWare" exact="$deployableMacro.ware" />
       <!-- build inputs per production run come from Lua: ware.resources is null for equipment -->
@@ -775,17 +890,19 @@
         <resume label="restockDone" />
       </do_if>
 
-      <!-- own supply ships in this sector first, then known stations: this sector, two gates, anywhere -->
+      <!-- own supply ships in this sector first, only with free storage as they take no other deployables; then known stations: this sector, two gates, anywhere -->
       <set_value name="$restockSupplier" exact="null" />
       <set_value name="$restockMoneyShort" exact="false" />
-      <find_ship_by_true_owner name="$restockCandidates" cansupplyclass="this.assignedcontrolled.class" faction="this.owner" space="this.sector" multiple="true" sortbydistanceto="this.assignedcontrolled" />
-      <do_for_each name="$restockLoc" in="$restockCandidates">
-        <include_interrupt_actions ref="checkSupplier" />
-        <do_if value="$restockLocOk">
-          <set_value name="$restockSupplier" exact="$restockLoc" />
-          <break />
-        </do_if>
-      </do_for_each>
+      <do_if value="$restockRealFree ge 1">
+        <find_ship_by_true_owner name="$restockCandidates" cansupplyclass="this.assignedcontrolled.class" faction="this.owner" space="this.sector" multiple="true" sortbydistanceto="this.assignedcontrolled" />
+        <do_for_each name="$restockLoc" in="$restockCandidates">
+          <include_interrupt_actions ref="checkSupplier" />
+          <do_if value="$restockLocOk">
+            <set_value name="$restockSupplier" exact="$restockLoc" />
+            <break />
+          </do_if>
+        </do_for_each>
+      </do_if>
       <do_if value="not $restockSupplier">
         <find_cluster_in_range name="$restockClusters" object="this.assignedcontrolled" maxdistance="2" mindistance="0" multiple="true" />
         <set_value name="$restockSpaces" exact="[this.sector, $restockClusters, player.galaxy]" />
@@ -851,6 +968,16 @@
       <set_command_action commandaction="commandaction.waitingtodock" />
       <wait exact="10s" />
 
+      <do_if value="$restockSupplier.isclass.station">
+        <set_value name="$retStation" exact="$restockSupplier" />
+        <include_interrupt_actions ref="handOverOthers" />
+        <remove_value name="$retStation" />
+      </do_if>
+      <set_value name="$restockAmount" exact="[$restockAmount, this.assignedcontrolled.ammostorage.deployable.free].min" />
+      <do_if value="$restockAmount lt 1">
+        <debug_text text="'SmartMinelayer: %s has no free deployable storage for %s at %s, try %s of 5'.[this.assignedcontrolled.debugname, $deployableMacro, $restockSupplier.debugname, this.$SmartMinelayerRestock.$tries]" filter="error" />
+        <resume label="restockDone" />
+      </do_if>
       <!-- nothing is taken until the hand-over, so a cancel before it costs nothing -->
       <set_value name="$restockLoc" exact="$restockSupplier" />
       <include_interrupt_actions ref="checkSupplier" />
@@ -894,6 +1021,7 @@
       <remove_value name="$restockLocWhy" />
       <remove_value name="$restockLocAmount" />
       <remove_value name="$restockMoneyShort" />
+      <remove_value name="$restockRealFree" />
       <remove_value name="$restockUnitPrice" />
       <remove_value name="$restockPrice" />
       <remove_value name="$restockPaid" />
@@ -1111,7 +1239,8 @@
       <label name="returnSurplus" />
       <set_value name="$phase" exact="'return'" />
       <set_value name="$retWare" exact="$deployableMacro.ware" />
-      <set_value name="$retAmount" exact="[this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />
+      <!-- freeing room, the station must still take this item, also when none of it goes -->
+      <set_value name="$retAmount" exact="if @$freeRoom then [$freeRoomClaims, 1].max else [this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />
       <do_if value="$retAmount lt 1">
         <debug_text text="'SmartMinelayer: %s has no %s aboard to return, surplus %s dropped'.[this.assignedcontrolled.debugname, $deployableMacro, this.$SmartMinelayerSurplus]" chance="$debugChance" />
         <remove_value name="this.$SmartMinelayerSurplus" />
@@ -1164,7 +1293,12 @@
         <debug_text text="'SmartMinelayer: %s found no known station that builds %s and takes back %s of it, other factions\' stations %s, next try in 10 min'.[this.assignedcontrolled.debugname, $deployableMacro, $retAmount, if @this.$SmartMinelayerRestockNpc == 1 then 'allowed' else 'not allowed']" filter="error" />
         <resume label="returnDone" />
       </do_if>
-      <debug_text text="'SmartMinelayer: %s returns %s of %s to %s (%s), %s Cr each'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, if $retStation.isplayerowned then 'own' else 'other faction', $retUnitPrice / 1Cr]" chance="$debugChance" />
+      <do_if value="@$freeRoom">
+        <debug_text text="'SmartMinelayer: %s frees room at %s (%s): up to %s of %s for %s claimed items to collect, other deployables it builds'.[this.assignedcontrolled.debugname, $retStation.debugname, if $retStation.isplayerowned then 'own' else 'other faction', [$freeRoomClaims, $retLocAmount].min, $deployableMacro, $freeRoomClaims]" chance="$debugChance" />
+      </do_if>
+      <do_else>
+        <debug_text text="'SmartMinelayer: %s returns %s of %s to %s (%s), %s Cr each'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, if $retStation.isplayerowned then 'own' else 'other faction', $retUnitPrice / 1Cr]" chance="$debugChance" />
+      </do_else>
       <do_if value="@this.assignedcontrolled.dock.container != $retStation">
         <run_script name="'order.dock'" sinceversion="6">
           <param name="destination" value="$retStation" />
@@ -1180,42 +1314,45 @@
       <wait exact="10s" sinceversion="6" />
       <!-- the station's storage or money may have changed on the way -->
       <set_value name="$retLoc" exact="$retStation" />
-      <set_value name="$retAmount" exact="[@this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />
-      <include_interrupt_actions ref="checkReturnStation" />
+      <set_value name="$retAmount" exact="[if @$freeRoom then $freeRoomClaims else @this.$SmartMinelayerSurplus, this.assignedcontrolled.ammostorage.{$deployableMacro}.count].min" />
+      <set_value name="$retLocOk" exact="false" />
+      <do_if value="$retAmount ge 1">
+        <include_interrupt_actions ref="checkReturnStation" />
+      </do_if>
       <remove_value name="$retLoc" />
-      <do_if value="not $retLocOk or @this.assignedcontrolled.dock.container != $retStation">
+      <do_if value="@this.assignedcontrolled.dock.container != $retStation or (not $retLocOk and not @$freeRoom)">
         <set_value name="this.$SmartMinelayerSurplusNext" exact="player.age + 10min" />
         <debug_text text="'SmartMinelayer: %s lost %s as surplus taker while docked, next try in 10 min'.[this.assignedcontrolled.debugname, $retStation.debugname]" filter="error" />
         <resume label="returnDone" />
       </do_if>
-      <remove_ammo object="this.assignedcontrolled" macro="$deployableMacro" amount="$retLocAmount" />
-      <do_if value="$retStation.isplayerowned">
-        <set_value name="$retAdded" exact="table[]" />
-        <do_for_each name="$retInput" valuename="$retPerRun" in="$retInputs">
-          <set_value name="$retAdd" exact="(($retPerRun * $retLocAmount) / $retRunAmount)i" />
-          <do_if value="$retAdd gt 0">
-            <add_cargo object="$retStation" ware="$retInput" exact="$retAdd" />
-            <set_value name="$retAdded.{$retInput}" exact="$retAdd" />
+      <do_if value="$retLocOk">
+        <set_value name="$retMacro" exact="$deployableMacro" />
+        <include_interrupt_actions ref="handOver" />
+        <remove_value name="$retMacro" />
+        <set_value name="this.$SmartMinelayerSurplus" exact="(if this.$SmartMinelayerSurplus? then this.$SmartMinelayerSurplus else 0) - $retLocAmount" />
+        <do_if value="this.$SmartMinelayerSurplus le 0">
+          <remove_value name="this.$SmartMinelayerSurplusNext" />
+          <!-- room freed for items to collect: below 0 until they are collected -->
+          <do_if value="this.$SmartMinelayerSurplus == 0 or not @$freeRoom">
+            <remove_value name="this.$SmartMinelayerSurplus" />
           </do_if>
-        </do_for_each>
-        <debug_text text="'SmartMinelayer: %s returned %s of %s to %s as build inputs %s'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, $retAdded]" chance="$debugChance" />
-        <remove_value name="$retAdd" />
-        <remove_value name="$retAdded" />
+        </do_if>
       </do_if>
-      <do_else>
-        <set_value name="$retPrice" exact="(($retUnitPrice * $retLocAmount / 1Cr)i)Cr" />
-        <set_value name="$retPlayerMoney" exact="player.money" />
-        <transfer_money from="$retStation" to="faction.player" amount="$retPrice" />
-        <debug_text text="'SmartMinelayer: %s sold %s of %s to %s for %s Cr, player received %s Cr'.[this.assignedcontrolled.debugname, $retLocAmount, $deployableMacro, $retStation.debugname, $retPrice / 1Cr, (player.money - $retPlayerMoney) / 1Cr]" chance="$debugChance" />
-        <remove_value name="$retPlayerMoney" />
-      </do_else>
-      <set_value name="this.$SmartMinelayerSurplus" operation="subtract" exact="$retLocAmount" />
-      <do_if value="this.$SmartMinelayerSurplus le 0">
-        <remove_value name="this.$SmartMinelayerSurplus" />
-        <remove_value name="this.$SmartMinelayerSurplusNext" />
-      </do_if>
+      <include_interrupt_actions ref="handOverOthers" />
 
       <label name="returnDone" />
+      <do_if value="@$freeRoom">
+        <!-- no room freed: the claims go to the other ships -->
+        <do_if value="this.assignedcontrolled.ammostorage.deployable.free lt 1">
+          <include_interrupt_actions ref="releaseCollectClaims" />
+          <do_if value="not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age">
+            <set_value name="this.$SmartMinelayerSurplusNext" exact="player.age + 10min" />
+            <debug_text text="'SmartMinelayer: %s freed no deployable storage at %s, next try in 10 min'.[this.assignedcontrolled.debugname, @$retStation.debugname]" filter="error" />
+          </do_if>
+        </do_if>
+        <remove_value name="$freeRoom" />
+        <remove_value name="$freeRoomClaims" />
+      </do_if>
       <remove_value name="$retWare" />
       <remove_value name="$retAmount" />
       <remove_value name="$retInputs" />
@@ -1325,7 +1462,7 @@
         <resume label="deployLoop" />
       </do_if>
       <include_interrupt_actions ref="findCollect" />
-      <do_if value="($collectFound and this.assignedcontrolled.ammostorage.deployable.free ge 1) or (@this.$SmartMinelayerSurplus gt 0 and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age))">
+      <do_if value="($collectFound and this.assignedcontrolled.ammostorage.deployable.free ge 1) or ((@this.$SmartMinelayerSurplus gt 0 or ($collectFound and this.assignedcontrolled.ammostorage.deployable.capacity gt 0)) and (not this.$SmartMinelayerSurplusNext? or this.$SmartMinelayerSurplusNext le player.age))">
         <resume label="deployLoop" />
       </do_if>
       <do_if value="@this.assignedcontrolled.commander">
